@@ -83,13 +83,19 @@ Proyecto `futbol-david` (región París, plan gratuito). Las migraciones de `sup
 
 Pasos manuales en el panel de Supabase (**Authentication**):
 
-1. **URL Configuration** → *Site URL*: la URL de Vercel (p. ej. `https://futbol-david.vercel.app`) y añádela en *Redirect URLs* junto a `http://localhost:5173/**`.
+1. **URL Configuration** → *Site URL*: `https://futbol-david.vercel.app` y añádela en *Redirect URLs* junto a `http://localhost:5173/**`.
 2. **Email Templates → Magic Link**: añade el código al email para poder entrar desde las apps nativas, p. ej.
    `<p>Tu código de acceso: <strong>{{ .Token }}</strong></p>` (el enlace sigue funcionando en web).
 3. Opcional: configura un SMTP propio (*Authentication → SMTP*); el de Supabase está limitado a unos pocos emails por hora.
 
 ## Vercel
 
-Importa el repositorio en Vercel (framework *Vite*, se detecta solo gracias a `vercel.json`) y añade las variables
-`VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` (valores en `.env.example`). Cada push a `main` despliega
-producción y cada PR genera una URL de vista previa.
+Producción: **https://futbol-david.vercel.app** (proyecto `futbol-david`, enlazado a este repositorio).
+Cada push a `main` se despliega automáticamente en producción; las ramas y PR generan vistas previas
+(protegidas con Vercel Authentication). Las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`
+ya están configuradas en el proyecto.
+
+## Datos iniciales
+
+`SAGRAT_COR_backup.json` (SAGRAT COR · Cadete Sub15 · 2026-27, 17 jugadores) se carga automáticamente la
+primera vez que se abre la app en un dispositivo sin datos. Nunca sobrescribe datos existentes.
