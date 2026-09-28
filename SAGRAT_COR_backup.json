@@ -1,0 +1,156 @@
+{
+  "cfg": {
+    "name": "SAGRAT COR",
+    "season": "2026-27",
+    "cat": "CADETE SUB15"
+  },
+  "players": [
+    {
+      "id": 1,
+      "name": "AARON",
+      "number": "1",
+      "position": "Portero",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 2,
+      "name": "MIGUEL",
+      "number": "14",
+      "position": "Defensa",
+      "birth": "",
+      "foot": "I"
+    },
+    {
+      "id": 3,
+      "name": "PATO",
+      "number": "4",
+      "position": "Centrocampista",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 4,
+      "name": "DAVID",
+      "number": "2",
+      "position": "Centrocampista",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 5,
+      "name": "MATEU SOLS",
+      "number": "22",
+      "position": "Defensa",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 6,
+      "name": "JORDI",
+      "number": "17",
+      "position": "Centrocampista",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 7,
+      "name": "IGNASI",
+      "number": "23",
+      "position": "Defensa",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 8,
+      "name": "JOAN",
+      "number": "11",
+      "position": "Defensa",
+      "birth": "",
+      "foot": "I"
+    },
+    {
+      "id": 9,
+      "name": "HUGO",
+      "number": "99",
+      "position": "Centrocampista",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 10,
+      "name": "MATEO TORRES",
+      "number": "7",
+      "position": "Centrocampista",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 11,
+      "name": "CANO",
+      "number": "10",
+      "position": "Delantero",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 12,
+      "name": "GIORGIO",
+      "number": "21",
+      "position": "Centrocampista",
+      "birth": "",
+      "foot": "I"
+    },
+    {
+      "id": 13,
+      "name": "NACHO",
+      "number": "",
+      "position": "Centrocampista",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 14,
+      "name": "OSCAR",
+      "number": "",
+      "position": "Defensa",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 15,
+      "name": "ALEJANDRO",
+      "number": "",
+      "position": "Defensa",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 16,
+      "name": "LUCCA",
+      "number": "4",
+      "position": "Delantero",
+      "birth": "",
+      "foot": "D"
+    },
+    {
+      "id": 17,
+      "name": "MIGUEL BONET",
+      "number": "",
+      "position": "Centrocampista",
+      "birth": "",
+      "foot": "D"
+    }
+  ],
+  "matches": [],
+  "trainings": [],
+  "evaluations": [],
+  "objectives": [],
+  "callups": [],
+  "nPid": 18,
+  "nMid": 1,
+  "nTid": 1,
+  "nEid": 1,
+  "nOid": 1,
+  "nCid": 1
+}
