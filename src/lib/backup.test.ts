@@ -84,3 +84,16 @@ describe('parseBackup (formato nuevo)', () => {
     expect(() => parseBackup('x', 'T')).toThrow();
   });
 });
+
+describe('datos iniciales (SAGRAT_COR_backup.json)', () => {
+  it('carga el equipo y los 17 jugadores del repositorio', async () => {
+    const { seedFor } = await import('./seed');
+    const { team, data } = seedFor('T');
+    expect(team).toMatchObject({ name: 'SAGRAT COR', season: '2026-27', category: 'CADETE SUB15' });
+    expect(data.players).toHaveLength(17);
+    expect(data.players.every((p) => p.team_id === 'T')).toBe(true);
+    // Datos reales: 4 jugadores sin dorsal y el 4 repetido (PATO y LUCCA) se conservan tal cual.
+    expect(data.players.filter((p) => p.number == null).map((p) => p.name)).toEqual(['NACHO', 'OSCAR', 'ALEJANDRO', 'MIGUEL BONET']);
+    expect(data.players.filter((p) => p.number === 4).map((p) => p.name)).toEqual(['PATO', 'LUCCA']);
+  });
+});

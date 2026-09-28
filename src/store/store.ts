@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { parseBackup } from '../lib/backup';
 import { TRASH_DAYS } from '../lib/constants';
+import { seedFor } from '../lib/seed';
 import { currentSeason } from '../lib/dates';
 import { uid } from '../lib/id';
 import { storage } from '../lib/storage';
@@ -110,6 +111,13 @@ export const useStore = create<State>((set, get) => ({
       } catch {
         /* datos antiguos corruptos: se ignoran */
       }
+    }
+    // Dispositivo vacío en modo local → carga el equipo del repositorio (SAGRAT_COR_backup.json).
+    const blank = !p || (p.mode === 'guest' && TABLES.every((t) => !p!.data?.[t]?.length));
+    if (blank) {
+      const team = p?.team ?? newGuestTeam();
+      const seed = seedFor(team.id);
+      p = { v: 5, mode: 'guest', team: { ...team, ...seed.team }, data: seed.data, outbox: [], lastSyncAt: null };
     }
     if (p) {
       const data = { ...emptyDataset(), ...p.data };
