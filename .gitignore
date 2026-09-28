@@ -1,0 +1,19 @@
+node_modules
+dist
+dev-dist
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+.vercel
+coverage
+# Capacitor native build outputs
+android/app/build
+android/.gradle
+android/build
+android/local.properties
+ios/App/build
+ios/App/Pods
+ios/DerivedData
+*.tsbuildinfo

@@ -1,0 +1,5 @@
+package com.futboldavid.miequipo;
+
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {}
