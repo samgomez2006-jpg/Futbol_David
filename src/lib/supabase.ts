@@ -15,7 +15,9 @@ export const supabase: SupabaseClient | null =
           autoRefreshToken: true,
           // En nativo no hay URL con tokens que leer; en web sí (enlace mágico del email).
           detectSessionInUrl: !Capacitor.isNativePlatform(),
-          flowType: 'pkce',
+          // 'implicit' (no PKCE): el enlace del email funciona aunque se abra en otro navegador o en la app de correo,
+          // que es la causa más habitual de que "falle el enlace de verificación" en el móvil.
+          flowType: 'implicit',
         },
       })
     : null;

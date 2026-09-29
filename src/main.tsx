@@ -5,6 +5,7 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import { isNative } from './lib/platform';
+import { initAuth } from './store/auth';
 import { useStore } from './store/store';
 import { startSync } from './store/sync';
 import './styles.css';
@@ -12,8 +13,9 @@ import './styles.css';
 function Root() {
   const ready = useStore((s) => s.ready);
   useEffect(() => {
-    void useStore.getState().hydrate().then(() => {
+    void useStore.getState().hydrate().then(async () => {
       startSync();
+      await initAuth();
       if (isNative) void SplashScreen.hide();
     });
     if (isNative) {

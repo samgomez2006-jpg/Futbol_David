@@ -1,7 +1,7 @@
 {
   "name": "futbol-david",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "Mi Equipo FC — gestión de equipo de fútbol para entrenadores (web, iOS y Android)",
   "scripts": {
@@ -15,7 +15,7 @@
     "cap:sync": "npm run build && cap sync",
     "android": "npm run cap:sync && cap open android",
     "ios": "npm run cap:sync && cap open ios",
-    "assets": "npx @capacitor/assets generate --iconBackgroundColor '#16a34a' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#0f1115'"
+    "assets": "npx @capacitor/assets generate --iconBackgroundColor '#14284b' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#0f1115'"
   },
   "engines": {
     "node": ">=20"
@@ -31,6 +31,10 @@
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
     "@supabase/supabase-js": "^2.117.2",
+    "fflate": "^0.8.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "^1.48.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^8.4.0",

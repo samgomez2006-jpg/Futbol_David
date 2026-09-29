@@ -27,7 +27,6 @@
   "include": [
     "src",
     "vite.config.ts",
-    "capacitor.config.ts",
-    "SAGRAT_COR_backup.json"
+    "capacitor.config.ts"
   ]
 }

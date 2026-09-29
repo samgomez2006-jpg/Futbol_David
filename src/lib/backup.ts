@@ -6,13 +6,15 @@
 import { FORMATIONS, POSITIONS, SKILLS, slotKey } from './constants';
 import { currentSeason, todayISO } from './dates';
 import { uid } from './id';
+import { normalizeMatch, normalizeProfile } from './normalize';
 import type {
-  Callup, CallupStatus, CardEvent, ConcededGoal, Dataset, Evaluation, LineupEntry, Match, Objective,
-  ObjectiveCategory, Player, ScoredGoal, Team, Training,
+  BoardData, BoardItem, BoardLine, Callup, CallupStatus, CardEvent, ConcededGoal, Dataset, Evaluation, Incident, LineupEntry,
+  Match, Objective, ObjectiveCategory, Play, PlayKind, Player, ScoredGoal, Substitution, Team, Training,
 } from './types';
+import { emptyDataset } from './types';
 
 export const BACKUP_APP = 'mi-equipo-fc';
-export const BACKUP_VERSION = 5;
+export const BACKUP_VERSION = 6;
 
 export interface Backup {
   app: typeof BACKUP_APP;
@@ -23,6 +25,7 @@ export interface Backup {
 }
 
 type Obj = Record<string, unknown>;
+type LegacyMatch = Omit<Match, 'competition' | 'status' | 'callup_id' | 'subs' | 'incidents' | 'rival_info' | 'plan'>;
 const isObj = (x: unknown): x is Obj => typeof x === 'object' && x !== null && !Array.isArray(x);
 const arr = (x: unknown): unknown[] => (Array.isArray(x) ? x : []);
 const str = (x: unknown, max = 200, def = ''): string => (typeof x === 'string' ? x.trim().slice(0, max) : typeof x === 'number' ? String(x) : def);
@@ -38,7 +41,7 @@ export function makeBackup(team: Team, data: Dataset): Backup {
     app: BACKUP_APP,
     version: BACKUP_VERSION,
     exported_at: new Date().toISOString(),
-    team: { name: team.name, season: team.season, category: team.category },
+    team: { name: team.name, season: team.season, category: team.category, profile: team.profile },
     data,
   };
 }
@@ -87,7 +90,7 @@ function fromLegacy(d: Obj, teamId: string) {
     return id && knownPids.has(id) ? id : null;
   };
 
-  const matches: Match[] = arr(d.matches).filter(isObj).map((m) => {
+  const matches: LegacyMatch[] = arr(d.matches).filter(isObj).map((m) => {
     const total = int(m.totalMins, 1, 150) ?? 60;
     const tactic = str(m.tactic, 20);
     const slots = FORMATIONS[tactic] ?? FORMATIONS['4-3-3'];
@@ -162,8 +165,8 @@ function fromLegacy(d: Obj, teamId: string) {
   }));
 
   return {
-    team: { name: str(cfg.name, 80) || 'Mi Equipo FC', season: str(cfg.season, 20) || currentSeason(), category: str(cfg.cat, 60) },
-    data: { players, matches, trainings, evaluations, objectives, callups },
+    team: { name: str(cfg.name, 80) || 'Mi Equipo FC', season: str(cfg.season, 20) || currentSeason(), category: str(cfg.cat, 60), profile: normalizeProfile(null) },
+    data: { ...emptyDataset(), players, matches: matches.map((m) => normalizeMatch(m as Match)), trainings, evaluations, objectives, callups },
   };
 }
 
@@ -172,6 +175,7 @@ function fromV5(raw: Obj, teamId: string) {
   const d = raw.data as Obj;
   const t = isObj(raw.team) ? raw.team : {};
   const pidOf = idMapper();
+  const cidOf = idMapper();
   const players: Player[] = arr(d.players).filter(isObj).map((p) => ({
     id: pidOf(p.id)!, team_id: teamId, name: str(p.name, 80) || 'Jugador', number: int(p.number, 0, 99),
     position: oneOf(p.position, POSITIONS, 'Centrocampista'), birth: date(p.birth),
@@ -182,28 +186,62 @@ function fromV5(raw: Obj, teamId: string) {
     const id = pidOf(x);
     return id && known.has(id) ? id : null;
   };
+  const callupIds = new Set(arr(d.callups).filter(isObj).map((c) => cidOf(c.id)));
+  const callupRef = (x: unknown) => {
+    const id = cidOf(x);
+    return id && callupIds.has(id) ? id : null;
+  };
   const ev = (g: Obj) => ({ id: uid(), min: int(g.min, 1, 150), gtype: str(g.gtype, 40), field_zone: str(g.field_zone, 40), goal_zone: str(g.goal_zone, 40) });
-  const matches: Match[] = arr(d.matches).filter(isObj).map((m) => ({
-    id: uid(), team_id: teamId, rival: str(m.rival, 80) || 'Rival', date: date(m.date) ?? todayISO(),
-    venue: m.venue === 'V' ? 'V' : 'L', gf: int(m.gf, 0, 99) ?? 0, ga: int(m.ga, 0, 99) ?? 0,
-    total_mins: int(m.total_mins, 1, 150) ?? 60, tactic: str(m.tactic, 20), notes: str(m.notes, 4000), motm: ref(m.motm),
-    goals: arr(m.goals).filter(isObj).map((g) => ({ ...ev(g), pid: ref(g.pid), apid: ref(g.apid), body: str(g.body, 40) })),
-    conceded: arr(m.conceded).filter(isObj).map(ev),
-    cards: arr(m.cards).filter(isObj).flatMap((c) => {
-      const pid = ref(c.pid);
-      return pid ? [{ id: uid(), pid, type: c.type === 'R' ? 'R' : 'Y', min: int(c.min, 1, 150) } as CardEvent] : [];
+  const text = (x: unknown, max = 2000) => str(x, max);
+  const matches: Match[] = arr(d.matches).filter(isObj).map((m) =>
+    normalizeMatch({
+      id: uid(), team_id: teamId, rival: str(m.rival, 80) || 'Rival', date: date(m.date) ?? todayISO(),
+      venue: m.venue === 'V' ? 'V' : 'L', competition: str(m.competition, 80), status: m.status === 'scheduled' ? 'scheduled' : 'played',
+      callup_id: callupRef(m.callup_id),
+      gf: int(m.gf, 0, 99) ?? 0, ga: int(m.ga, 0, 99) ?? 0,
+      total_mins: int(m.total_mins, 1, 150) ?? 60, tactic: str(m.tactic, 20), notes: str(m.notes, 4000), motm: ref(m.motm),
+      goals: arr(m.goals).filter(isObj).map((g) => ({ ...ev(g), pid: ref(g.pid), apid: ref(g.apid), body: str(g.body, 40) })),
+      conceded: arr(m.conceded).filter(isObj).map(ev),
+      cards: arr(m.cards).filter(isObj).flatMap((c) => {
+        const pid = ref(c.pid);
+        return pid ? [{ id: uid(), pid, type: c.type === 'R' ? 'R' : 'Y', min: int(c.min, 1, 150) } as CardEvent] : [];
+      }),
+      lineup: arr(m.lineup).filter(isObj).flatMap((e) => {
+        const pid = ref(e.pid);
+        return pid ? [{ pid, role: e.role === 'TIT' ? 'TIT' : 'SUP', slot: typeof e.slot === 'string' ? e.slot.slice(0, 20) : null, mins: int(e.mins, 0, 150) ?? 0, mins_manual: e.mins_manual === true } as LineupEntry] : [];
+      }),
+      subs: arr(m.subs).filter(isObj).flatMap((s) => {
+        const out = ref(s.out_pid);
+        const inn = ref(s.in_pid);
+        return out && inn ? [{ id: uid(), min: int(s.min, 1, 150), out_pid: out, in_pid: inn } as Substitution] : [];
+      }),
+      incidents: arr(m.incidents).filter(isObj).map((i) => ({ id: uid(), min: int(i.min, 1, 150), text: text(i.text, 500) }) as Incident),
+      rival_info: (isObj(m.rival_info) ? m.rival_info : {}) as unknown as Match['rival_info'],
+      plan: (isObj(m.plan) ? m.plan : {}) as unknown as Match['plan'],
+      deleted_at: typeof m.deleted_at === 'string' ? m.deleted_at : null,
     }),
-    lineup: arr(m.lineup).filter(isObj).flatMap((e) => {
-      const pid = ref(e.pid);
-      return pid ? [{ pid, role: e.role === 'TIT' ? 'TIT' : 'SUP', slot: typeof e.slot === 'string' ? e.slot.slice(0, 20) : null, mins: int(e.mins, 0, 150) ?? 0 } as LineupEntry] : [];
-    }),
-    deleted_at: typeof m.deleted_at === 'string' ? m.deleted_at : null,
-  }));
+  );
+  const plays: Play[] = arr(d.plays).filter(isObj).map((p) => {
+    const data = isObj(p.data) ? p.data : {};
+    const items: BoardItem[] = arr(data.items).filter(isObj).slice(0, 200).map((i) => ({
+      id: str(i.id, 40) || uid(), type: oneOf(i.type, ['player', 'rival', 'gk', 'ball', 'cone', 'goal', 'text', 'area'] as const, 'player'),
+      x: Number(i.x) || 0, y: Number(i.y) || 0, label: str(i.label, 30), size: Number(i.size) || undefined,
+    }));
+    const lines: BoardLine[] = arr(data.lines).filter(isObj).slice(0, 200).map((l) => ({
+      id: str(l.id, 40) || uid(), kind: oneOf(l.kind, ['move', 'pass', 'dribble'] as const, 'move'),
+      points: arr(l.points).slice(0, 400).flatMap((pt) => (Array.isArray(pt) && pt.length === 2 ? [[Number(pt[0]) || 0, Number(pt[1]) || 0] as [number, number]] : [])),
+      from: typeof l.from === 'string' ? l.from : undefined,
+    }));
+    const board: BoardData = { pitch: oneOf(data.pitch, ['full', 'half', 'blank'] as const, 'full'), items, lines };
+    return { id: uid(), team_id: teamId, title: str(p.title, 120) || 'Jugada', kind: oneOf<PlayKind>(p.kind, ['jugada', 'ejercicio', 'situacion'], 'jugada'), description: text(p.description, 4000), data: board };
+  });
   return {
-    team: { name: str(t.name, 80) || 'Mi Equipo FC', season: str(t.season, 20), category: str(t.category, 60) },
+    team: { name: str(t.name, 80) || 'Mi Equipo FC', season: str(t.season, 20), category: str(t.category, 60), profile: normalizeProfile(t.profile) },
     data: {
+      ...emptyDataset(),
       players,
       matches,
+      plays,
       trainings: arr(d.trainings).filter(isObj).map((x) => ({
         id: uid(), team_id: teamId, date: date(x.date) ?? todayISO(), notes: str(x.notes, 2000),
         present: arr(x.present).map(ref).filter((y): y is string => !!y),
@@ -219,7 +257,7 @@ function fromV5(raw: Obj, teamId: string) {
         return [{ id: uid(), team_id: teamId, title: str(o.title, 120) || 'Objetivo', scope, player_id: pid, category: objCat(o.category), target: int(o.target, 1, 100000) ?? 1, current: int(o.current, 0, 100000) ?? 0 }];
       }),
       callups: arr(d.callups).filter(isObj).map((c) => ({
-        id: uid(), team_id: teamId, rival: str(c.rival, 80) || 'Rival', date: date(c.date) ?? todayISO(),
+        id: cidOf(c.id)!, team_id: teamId, rival: str(c.rival, 80) || 'Rival', date: date(c.date) ?? todayISO(),
         meet_time: str(c.meet_time, 40), place: str(c.place, 120), players: callupPlayers(c.players, ref),
       })),
     },

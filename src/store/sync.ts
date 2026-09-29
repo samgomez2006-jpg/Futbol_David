@@ -1,6 +1,6 @@
-import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { TABLES, emptyDataset, type Dataset, type Team } from '../lib/types';
+import { normalizeDataset, normalizeTeam } from '../lib/normalize';
+import { TABLES, emptyDataset, emptyProfile, type Dataset, type Team } from '../lib/types';
 import { enqueueEverything, newGuestTeam, persistNow, setChangeListener, useStore, type Mutation } from './store';
 
 // ---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ export async function pull(): Promise<void> {
   st._set({ sync: 'syncing' });
   try {
     const teamId = st.team.id;
-    const { data: team, error } = await supabase.from('teams').select('id,name,season,category,invite_code').eq('id', teamId).maybeSingle();
+    const { data: team, error } = await supabase.from('teams').select('id,name,season,category,invite_code,profile').eq('id', teamId).maybeSingle();
     if (error) throw error;
     if (!team) {
       // Ya no somos miembros (o el equipo fue borrado).
@@ -107,8 +107,8 @@ export async function pull(): Promise<void> {
     }
     const teamPending = now.outbox.some((m) => m.table === 'teams');
     now._set({
-      data: merged,
-      team: teamPending ? { ...now.team, invite_code: team.invite_code } : (team as Team),
+      data: normalizeDataset(merged),
+      team: teamPending ? { ...now.team, invite_code: team.invite_code } : normalizeTeam(team as Team),
       lastSyncAt: new Date().toISOString(),
       sync: now.syncError ? 'error' : 'idle',
     });
@@ -136,13 +136,13 @@ setChangeListener(() => scheduleSync());
 
 export type LocalStrategy = 'merge' | 'discard';
 
-async function myTeams(userId: string): Promise<Team[]> {
+export async function myTeams(userId: string): Promise<Team[]> {
   const { data, error } = await supabase!
     .from('team_members')
-    .select('teams(id,name,season,category,invite_code)')
+    .select('teams(id,name,season,category,invite_code,profile)')
     .eq('user_id', userId);
   if (error) throw error;
-  return (data ?? []).map((r) => (r as unknown as { teams: Team }).teams).filter(Boolean);
+  return (data ?? []).map((r) => (r as unknown as { teams: Team }).teams).filter(Boolean).map(normalizeTeam);
 }
 
 export const hasLocalData = () => {
@@ -150,71 +150,65 @@ export const hasLocalData = () => {
   return TABLES.some((t) => d[t].length > 0);
 };
 
-/**
- * Tras iniciar sesión. Si el usuario no tiene equipo, se crea con el equipo local y se suben los datos.
- * Si ya tiene equipo, los datos locales de invitado se fusionan o descartan según `strategy`.
- */
-export async function connectAccount(session: Session, strategy: LocalStrategy = 'merge'): Promise<'created' | 'joined'> {
+interface Who {
+  userId: string;
+  email: string | null;
+}
+
+/** Crea el equipo en la nube. Con `keepLocal` sube los datos que ya hay en este dispositivo. */
+export async function createCloudTeam(who: Who, input: { name: string; season: string; category: string }, opts: { keepLocal: boolean; extra?: Dataset }) {
   if (!supabase) throw new Error('Supabase no configurado');
   const st = useStore.getState();
-  const teams = await myTeams(session.user.id);
-  if (!teams.length) {
-    if (strategy === 'discard') st._set({ data: emptyDataset() });
-    const { data, error } = await supabase.rpc('create_team', {
-      p_name: st.team.name, p_season: st.team.season, p_category: st.team.category, p_id: st.team.id,
-    });
-    if (error) throw error;
-    st._set({ mode: 'cloud', team: data as Team, userEmail: session.user.email ?? null });
-    useStore.getState()._set({ outbox: enqueueEverything() });
-    await persistNow();
-    await syncNow();
-    return 'created';
-  }
-  await adoptTeam(teams[0], strategy, session.user.email ?? null);
-  return 'joined';
+  const local = opts.keepLocal ? st.data : emptyDataset();
+  const id = opts.keepLocal ? st.team.id : crypto.randomUUID();
+  const { data, error } = await supabase.rpc('create_team', { p_name: input.name, p_season: input.season, p_category: input.category, p_id: id });
+  if (error) throw error;
+  const remote = normalizeTeam(data as Team);
+  const profile = opts.keepLocal ? st.team.profile : emptyProfile();
+  st._set({ mode: 'cloud', ownerId: who.userId, team: { ...remote, profile }, data: local, outbox: [], userEmail: who.email, syncError: null });
+  useStore.getState()._set({ outbox: enqueueEverything() });
+  if (opts.extra) useStore.getState().bulkAdd(opts.extra);
+  await persistNow();
+  await syncNow();
 }
 
-export async function joinWithCode(code: string, strategy: LocalStrategy) {
-  if (!supabase) throw new Error('Supabase no configurado');
-  const { data, error } = await supabase.rpc('join_team', { p_code: code });
-  if (error) throw new Error(error.code === 'P0002' ? 'Código de invitación no válido' : error.message);
-  const { data: u } = await supabase.auth.getUser();
-  await adoptTeam(data as Team, strategy, u.user?.email ?? null);
-}
-
-async function adoptTeam(team: Team, strategy: LocalStrategy, email: string | null) {
+export async function adoptTeam(who: Who, team: Team, strategy: LocalStrategy) {
   const st = useStore.getState();
   const local = strategy === 'merge' ? st.data : emptyDataset();
-  st._set({ mode: 'cloud', team, data: emptyDataset(), outbox: [], userEmail: email, syncError: null });
+  st._set({ mode: 'cloud', ownerId: who.userId, team, data: emptyDataset(), outbox: [], userEmail: who.email, syncError: null });
   if (strategy === 'merge' && TABLES.some((t) => local[t].length)) useStore.getState().bulkAdd(local as Dataset);
   await persistNow();
   await syncNow();
 }
 
-/** Cierra sesión y deja el dispositivo como un invitado vacío (los datos quedan en la nube). */
+export async function joinWithCode(who: Who, code: string, strategy: LocalStrategy) {
+  if (!supabase) throw new Error('Supabase no configurado');
+  const { data, error } = await supabase.rpc('join_team', { p_code: code });
+  if (error) throw new Error(error.code === 'P0002' ? 'Código de invitación no válido' : error.message);
+  await adoptTeam(who, normalizeTeam(data as Team), strategy);
+}
+
+/** Deja el dispositivo limpio (sin datos de ninguna cuenta). */
+export function resetLocal() {
+  useStore.getState()._set({
+    mode: 'guest', ownerId: null, team: newGuestTeam(), data: emptyDataset(), outbox: [], userEmail: null,
+    lastSyncAt: null, sync: 'idle', syncError: null,
+  });
+}
+
+/** Cierra sesión: sube lo pendiente y borra los datos del dispositivo (siguen en la nube). */
 export async function signOut() {
   await flush();
   await supabase?.auth.signOut();
-  useStore.getState()._set({
-    mode: 'guest', team: newGuestTeam(), data: emptyDataset(), outbox: [], userEmail: null,
-    lastSyncAt: null, sync: 'idle', syncError: null,
-  });
+  resetLocal();
   await persistNow();
 }
 
-/** Arranque: engancha eventos de auth/red/ciclo de vida. */
+let started = false;
+/** Arranque: enganchamos red y ciclo de vida para sincronizar. La sesión la gestiona store/auth.ts. */
 export function startSync() {
-  if (!supabase) return;
-  supabase.auth.getSession().then(({ data }) => {
-    const s = useStore.getState();
-    if (data.session) {
-      s._set({ userEmail: data.session.user.email ?? null });
-      if (s.mode === 'cloud') void syncNow();
-    }
-  });
-  supabase.auth.onAuthStateChange((_e, session) => {
-    useStore.getState()._set({ userEmail: session?.user.email ?? null });
-  });
+  if (!supabase || started) return;
+  started = true;
   window.addEventListener('online', () => void syncNow());
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void syncNow();

@@ -1,9 +1,32 @@
 # Mi Equipo FC ⚽
 
-App para entrenadores de fútbol: plantilla, partidos (alineación, goles, tarjetas, minutos), entrenamientos,
-evaluaciones, objetivos, convocatorias y análisis automático.
-**Una sola base de código** para **web (Vercel)**, **iOS** y **Android** (Capacitor), con **Supabase** para cuentas y
-sincronización entre dispositivos.
+Plataforma para entrenadores de fútbol: **gestionar** (plantilla, convocatorias, asistencia), **planificar** (modelo de juego,
+rival, planteamiento del partido, pizarra táctica), **registrar** (partidos, alineaciones, cambios, minutos, goles con su zona,
+observaciones) y **analizar** (estadísticas, tendencias, mapas de zonas de gol, patrones en tus observaciones).
+Una sola base de código para **web (Vercel)**, **iOS** y **Android** (Capacitor), con **Supabase** para cuentas y sincronización.
+
+Producción: **https://futbol-david.vercel.app**
+
+## Qué hay dentro
+
+| Sección | Qué hace |
+|---|---|
+| **Inicio** | Próximo partido, último resultado y racha, KPIs, accesos rápidos y el bloque **Herramientas tácticas** (pizarra, jugadas, alineaciones, evaluaciones, objetivos, convocatorias). |
+| **Plantilla** | Nombre, dorsal, posición y **minutos jugados** visibles en la lista, con goles, asistencias y partidos; todo se actualiza solo desde los partidos. |
+| **Partidos** | Próximos / jugados / papelera. Ficha completa: convocados, **alineación visual sobre el campo**, suplentes, **cambios**, minutos automáticos, goles (jugada, penalti, falta, propia puerta, centro…), **zona de cada gol**, tarjetas, incidencias, **información del rival**, **planteamiento en ataque y defensa** y observaciones. |
+| **Convocatorias y asistencia** | Al crear una convocatoria se crea sola la ficha del partido con los convocados (sin teclear nada dos veces). Entrenos, convocatorias y resumen por jugador. |
+| **Analíticas** | Hallazgos automáticos (1ª vs 2ª parte, evolución, carga de minutos, participación…), **dos mapas de burbujas de zonas** (goles realizados y recibidos), patrones detectados en tus observaciones, tipos de gol, rendimiento por sistema. |
+| **Equipo** | Información general, cuerpo técnico, sistema habitual, modelo y principios de juego, ideas tácticas (todo editable), cuenta y exportaciones. |
+| **Pizarra táctica** | Campo completo / medio / zona libre, jugadores, rivales, balón, conos, porterías, zonas y texto; movimientos, pases y conducciones; deshacer/rehacer, animación, guardar, editar, duplicar y exportar (PNG, PDF, JSON). |
+| **Exportar** | Excel (.xlsx), CSV y PDF de plantilla, partidos, goles, minutos, convocatorias, asistencia y analíticas; ficha de partido en PDF. |
+
+## Zonas de gol
+
+La división del campo está definida **una sola vez** en `src/lib/zones.ts` (10 zonas sobre media pista, portería atacada arriba) y
+la usan tanto el selector táctil al registrar el gol como los mapas de Analíticas. Los porcentajes se calculan como
+`goles de la zona / goles con zona × 100`, y hasta que no hay 5 goles con zona el mapa avisa de que aún no hay registros suficientes.
+> La imagen de referencia de zonas no llegó adjunta: se usó una división estándar (área pequeña, tres zonas del área, frontal,
+> exteriores, bandas y larga distancia). Si quieres otra, basta con editar la lista `ZONES`: registro y analíticas cambian juntos.
 
 ## Arquitectura
 
@@ -81,12 +104,18 @@ Identificador de la app: `com.futboldavid.miequipo` (cámbialo en `capacitor.con
 
 Proyecto `futbol-david` (región París, plan gratuito). Las migraciones de `supabase/migrations/` ya están aplicadas.
 
-Pasos manuales en el panel de Supabase (**Authentication**):
+Pasos manuales en el panel de Supabase (**Authentication**) — **necesarios para que el enlace del email funcione**:
 
-1. **URL Configuration** → *Site URL*: `https://futbol-david.vercel.app` y añádela en *Redirect URLs* junto a `http://localhost:5173/**`.
-2. **Email Templates → Magic Link**: añade el código al email para poder entrar desde las apps nativas, p. ej.
-   `<p>Tu código de acceso: <strong>{{ .Token }}</strong></p>` (el enlace sigue funcionando en web).
-3. Opcional: configura un SMTP propio (*Authentication → SMTP*); el de Supabase está limitado a unos pocos emails por hora.
+1. **URL Configuration → Site URL**: `https://futbol-david.vercel.app`. Añade también `https://futbol-david.vercel.app/**` y
+   `http://localhost:5173/**` en *Redirect URLs*. (Con el valor por defecto `http://localhost:3000` el enlace de verificación verifica
+   la cuenta pero redirige a una página que no existe: por eso «fallaba».)
+2. **Email Templates → Confirm signup / Magic Link**: añade `{{ .Token }}` para poder entrar con el código de 6 dígitos (opcional).
+3. **SMTP propio** (recomendado): el correo integrado de Supabase está muy limitado (pocos emails por hora).
+4. *(Plan Pro)* **Password security → Leaked password protection**.
+
+**Acceso:** la app exige iniciar sesión (email + contraseña, o código por email). Cada usuario solo ve los datos de su equipo
+(RLS por `team_id`); al cambiar de cuenta en un mismo dispositivo los datos de la anterior se descartan. Si el enlace del email
+no abre la app, la cuenta queda verificada igualmente y basta con volver y pulsar «Ya he verificado mi email».
 
 ## Vercel
 
@@ -95,7 +124,8 @@ Cada push a `main` se despliega automáticamente en producción; las ramas y PR 
 (protegidas con Vercel Authentication). Las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`
 ya están configuradas en el proyecto.
 
-## Datos iniciales
+## Datos de partida
 
-`SAGRAT_COR_backup.json` (SAGRAT COR · Cadete Sub15 · 2026-27, 17 jugadores) se carga automáticamente la
-primera vez que se abre la app en un dispositivo sin datos. Nunca sobrescribe datos existentes.
+Ya no se incluyen datos dentro de la app (cualquiera podría leerlos). Al entrar por primera vez, la bienvenida permite **importar
+una copia .json**: por ejemplo `SAGRAT_COR_backup.json` (17 jugadores, Cadete Sub15) o las copias de la versión anterior.
+> ⚠️ Ese archivo contiene nombres de jugadores menores y el repositorio es público: conviene sacarlo del repositorio.

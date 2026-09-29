@@ -1,25 +1,38 @@
+import { BarChart3, CalendarDays, House, Shield, Users } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
-import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { App as CapApp } from '@capacitor/app';
 import { ConfirmHost, Toast } from './components/Overlays';
+import { cloudEnabled } from './lib/supabase';
 import { isNative } from './lib/platform';
 import Account from './pages/Account';
-import Analysis from './pages/Analysis';
+import Analytics from './pages/Analytics';
+import Attendance from './pages/Attendance';
+import { AuthScreen, NewPassword } from './pages/Auth';
+import Board from './pages/Board';
+import Evaluations from './pages/Evaluations';
+import Export from './pages/Export';
 import Home from './pages/Home';
+import LineupHistory from './pages/LineupHistory';
 import MatchDetail from './pages/MatchDetail';
 import Matches from './pages/Matches';
+import Objectives from './pages/Objectives';
+import { Onboarding } from './pages/Onboarding';
 import PlayerDetail from './pages/PlayerDetail';
 import Players from './pages/Players';
-import { Attendance, Callups, Evaluations, LineupHistory, Objectives, TacticalHub } from './pages/Tactical';
+import Plays from './pages/Plays';
+import Team from './pages/Team';
 import { SheetHost } from './sheets/Sheets';
+import { useAuth } from './store/auth';
+import { useStore } from './store/store';
 import { useUI } from './store/ui';
 
 const NAV: [string, string, ReactNode][] = [
-  ['/', 'Inicio', <><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9,22 9,12 15,12 15,22" /></>],
-  ['/plantilla', 'Plantilla', <><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></>],
-  ['/partidos', 'Partidos', <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>],
-  ['/analisis', 'Análisis', <><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></>],
-  ['/tactico', 'Táctico', <><circle cx="12" cy="12" r="10" /><path d="M12 2a15 15 0 010 20M2 12h20" /></>],
+  ['/', 'Inicio', <House key="h" className="ico-lg" />],
+  ['/plantilla', 'Plantilla', <Users key="u" className="ico-lg" />],
+  ['/partidos', 'Partidos', <CalendarDays key="c" className="ico-lg" />],
+  ['/analiticas', 'Analíticas', <BarChart3 key="b" className="ico-lg" />],
+  ['/equipo', 'Equipo', <Shield key="s" className="ico-lg" />],
 ];
 
 function BottomNav() {
@@ -27,7 +40,7 @@ function BottomNav() {
     <nav className="bottom-nav" aria-label="Principal">
       {NAV.map(([to, label, icon]) => (
         <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
-          <svg viewBox="0 0 24 24" aria-hidden>{icon}</svg>
+          {icon}
           {label}
         </NavLink>
       ))}
@@ -61,7 +74,7 @@ function ScrollReset() {
   return null;
 }
 
-export default function App() {
+function MainApp() {
   return (
     <BrowserRouter>
       <div className="app">
@@ -71,26 +84,58 @@ export default function App() {
             <Route path="/plantilla" element={<Players />} />
             <Route path="/plantilla/:id" element={<PlayerDetail />} />
             <Route path="/partidos" element={<Matches />} />
-            <Route path="/partidos/papelera" element={<Matches trash />} />
             <Route path="/partidos/:id" element={<MatchDetail />} />
-            <Route path="/analisis" element={<Analysis />} />
-            <Route path="/tactico" element={<TacticalHub />} />
-            <Route path="/tactico/evaluaciones" element={<Evaluations />} />
-            <Route path="/tactico/objetivos" element={<Objectives />} />
-            <Route path="/tactico/convocatorias" element={<Callups />} />
-            <Route path="/tactico/alineaciones" element={<LineupHistory />} />
-            <Route path="/tactico/asistencia" element={<Attendance />} />
+            <Route path="/analiticas" element={<Analytics />} />
+            <Route path="/equipo" element={<Team />} />
             <Route path="/cuenta" element={<Account />} />
+            <Route path="/exportar" element={<Export />} />
+            <Route path="/asistencia" element={<Attendance />} />
+            <Route path="/alineaciones" element={<LineupHistory />} />
+            <Route path="/evaluaciones" element={<Evaluations />} />
+            <Route path="/objetivos" element={<Objectives />} />
+            <Route path="/pizarra" element={<Board />} />
+            <Route path="/pizarra/:id" element={<Board />} />
+            <Route path="/jugadas" element={<Plays />} />
+            {/* Rutas de versiones anteriores (la pestaña «Táctico» ya no existe) */}
+            <Route path="/analisis" element={<Navigate to="/analiticas" replace />} />
+            <Route path="/partidos/papelera" element={<Navigate to="/partidos?tab=papelera" replace />} />
+            <Route path="/convocatorias" element={<Navigate to="/asistencia?tab=convocatorias" replace />} />
+            <Route path="/tactico" element={<Navigate to="/" replace />} />
+            <Route path="/tactico/evaluaciones" element={<Navigate to="/evaluaciones" replace />} />
+            <Route path="/tactico/objetivos" element={<Navigate to="/objetivos" replace />} />
+            <Route path="/tactico/convocatorias" element={<Navigate to="/asistencia?tab=convocatorias" replace />} />
+            <Route path="/tactico/alineaciones" element={<Navigate to="/alineaciones" replace />} />
+            <Route path="/tactico/asistencia" element={<Navigate to="/asistencia" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
         <BottomNav />
       </div>
       <SheetHost />
-      <ConfirmHost />
-      <Toast />
       <HardwareBack />
       <ScrollReset />
     </BrowserRouter>
+  );
+}
+
+/** Con Supabase configurado la app exige sesión y equipo; sin él funciona en local (desarrollo). */
+function Gate() {
+  const status = useAuth((s) => s.status);
+  const mode = useStore((s) => s.mode);
+  if (!cloudEnabled) return <MainApp />;
+  if (status === 'loading') return <div className="splash" aria-busy="true"><Shield className="ico-lg" /></div>;
+  if (status === 'recovery') return <NewPassword />;
+  if (status === 'signedOut') return <AuthScreen />;
+  if (mode !== 'cloud') return <Onboarding />;
+  return <MainApp />;
+}
+
+export default function App() {
+  return (
+    <>
+      <Gate />
+      <ConfirmHost />
+      <Toast />
+    </>
   );
 }

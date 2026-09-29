@@ -3,12 +3,13 @@ import { create } from 'zustand';
 // Hojas (bottom sheets) que se pueden abrir desde cualquier pantalla.
 export type SheetSpec =
   | { kind: 'player'; id?: string }
-  | { kind: 'match'; id?: string }
+  | { kind: 'match'; id?: string; tab?: string }
   | { kind: 'training'; id?: string }
   | { kind: 'eval'; playerId?: string }
   | { kind: 'objective' }
   | { kind: 'callup'; id?: string }
-  | { kind: 'settings' };
+  | { kind: 'team' }
+  | { kind: 'backup' };
 
 interface ConfirmSpec {
   title: string;

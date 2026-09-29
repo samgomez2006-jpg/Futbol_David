@@ -2,12 +2,19 @@ import type { ObjectiveCategory, Position } from './types';
 
 export const POSITIONS: Position[] = ['Portero', 'Defensa', 'Centrocampista', 'Delantero'];
 export const SKILLS = ['Técnica', 'Pase', 'Defensa', 'Velocidad', 'Posicionamiento', 'Actitud', 'Esfuerzo'];
-export const GOAL_TYPES = [
-  'Jugada elaborada', 'Contraataque', 'Córner', 'Falta directa', 'Penalti',
-  'Saque de banda', 'Error defensivo', 'Pérdida en salida', 'Segunda jugada', 'Otro',
-];
+/** Tipos de gol. Los cinco primeros son los básicos; el resto son opcionales. */
+export const GOAL_TYPES = ['Jugada', 'Penalti', 'Falta', 'Propia puerta', 'Centro', 'Córner', 'Contraataque', 'Otro'];
+export const CORE_GOAL_TYPES = GOAL_TYPES.slice(0, 5);
+/** Valores de versiones anteriores → tipo actual. */
+export const LEGACY_GOAL_TYPES: Record<string, string> = {
+  'Jugada elaborada': 'Jugada',
+  'Falta directa': 'Falta',
+  'Segunda jugada': 'Jugada',
+  'Saque de banda': 'Otro',
+  'Error defensivo': 'Otro',
+  'Pérdida en salida': 'Otro',
+};
 export const BODY_PARTS = ['Pie derecho', 'Pie izquierdo', 'Cabeza', 'Otro'];
-export const FIELD_ZONES = ['Área pequeña', 'Dentro del área', 'Fuera del área', 'Banda izquierda', 'Banda derecha', 'Centro'];
 export const GOAL_ZONES = [
   'Arriba izq.', 'Arriba centro', 'Arriba der.',
   'Medio izq.', 'Centro', 'Medio der.',
@@ -48,3 +55,6 @@ export const OBJECTIVE_LABELS: Record<ObjectiveCategory, string> = {
 };
 export const TEAM_OBJECTIVES: ObjectiveCategory[] = ['wins', 'goals', 'cleansheets', 'attendance', 'custom'];
 export const PLAYER_OBJECTIVES: ObjectiveCategory[] = ['goals', 'assists', 'matches', 'attendance', 'cleansheets', 'custom'];
+
+export const COMPETITIONS = ['Liga', 'Copa', 'Amistoso', 'Torneo'];
+export const SUB_LIMIT_NOTE = 'Los cambios actualizan los minutos jugados automáticamente.';

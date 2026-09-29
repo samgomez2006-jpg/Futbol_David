@@ -1,8 +1,9 @@
+import { Archive, Pencil, RotateCcw, Star, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router';
 import { Empty, playerTag, posBadge, Progress, TopBar } from '../components/bits';
 import { SKILLS } from '../lib/constants';
 import { ageYears, compareDateDesc, fmtDate } from '../lib/dates';
-import { activeMatches, evalAverage, latestEvaluations, playerStats } from '../lib/stats';
+import { evalAverage, latestEvaluations, playedMatches, playerStats } from '../lib/stats';
 import { useStore } from '../store/store';
 import { confirmDialog, openSheet, toast } from '../store/ui';
 
@@ -13,20 +14,20 @@ export default function PlayerDetail() {
   const remove = useStore((s) => s.remove);
   const nav = useNavigate();
   const p = data.players.find((x) => x.id === id);
-  if (!p) return <div className="page"><TopBar back="Plantilla" backTo="/plantilla" /><Empty icon="🤷">Jugador no encontrado.</Empty></div>;
+  if (!p) return <div className="page"><TopBar back="Plantilla" backTo="/plantilla" /><Empty icon={Archive}>Jugador no encontrado.</Empty></div>;
 
   const s = playerStats(data, p.id);
   const evals = latestEvaluations(data, p.id);
   const ev = evals[0];
   const age = ageYears(p.birth);
-  const events = activeMatches(data)
-    .flatMap((m) => [
-      ...m.goals.filter((g) => g.pid === p.id).map((g) => ({ k: g.id, icon: '⚽', min: g.min, m, detail: g.gtype })),
-      ...m.goals.filter((g) => g.apid === p.id).map((g) => ({ k: g.id + 'a', icon: '🅰️', min: g.min, m, detail: 'Asistencia' })),
-      ...m.cards.filter((c) => c.pid === p.id).map((c) => ({ k: c.id, icon: c.type === 'Y' ? '🟨' : '🟥', min: c.min, m, detail: 'Tarjeta' })),
-    ])
-    .sort((a, b) => compareDateDesc(a.m, b.m));
-  const avgMins = s.matches ? Math.round(s.mins / s.matches) : 0;
+  const played = playedMatches(data).sort(compareDateDesc);
+  const history = played.flatMap((m) => {
+    const e = m.lineup.find((x) => x.pid === p.id);
+    const goals = m.goals.filter((g) => g.pid === p.id).length;
+    const assists = m.goals.filter((g) => g.apid === p.id).length;
+    const cards = m.cards.filter((c) => c.pid === p.id);
+    return e || goals || assists || cards.length ? [{ m, e, goals, assists, cards }] : [];
+  });
 
   const toggleArchive = async () => {
     if (!p.archived_at) {
@@ -46,7 +47,7 @@ export default function PlayerDetail() {
 
   return (
     <div className="page">
-      <TopBar back="Plantilla" backTo="/plantilla" right={<button className="btn btn-g btn-sm" onClick={() => openSheet({ kind: 'player', id: p.id })}>✏️ Editar</button>} />
+      <TopBar back="Plantilla" backTo="/plantilla" right={<button className="btn btn-g btn-sm" onClick={() => openSheet({ kind: 'player', id: p.id })}><Pencil className="ico-sm" /> Editar</button>} />
       <div className="page-inner">
         <div className="det-header">
           <div className="det-avatar">{playerTag(p)}</div>
@@ -55,31 +56,37 @@ export default function PlayerDetail() {
             <span className={`badge ${posBadge[p.position]}`}>{p.position}</span>
             {age != null && <span className="badge b-gray">{age} años</span>}
             <span className="badge b-gray">Pie {p.foot === 'D' ? 'derecho' : p.foot === 'I' ? 'izquierdo' : 'ambidiestro'}</span>
-            {s.motm > 0 && <span className="badge b-purple">⭐ MVP ×{s.motm}</span>}
+            {s.motm > 0 && <span className="badge b-blue"><Star className="ico-sm" /> MVP ×{s.motm}</span>}
             {p.archived_at && <span className="badge b-red">De baja</span>}
           </div>
         </div>
+
         <div className="stat-grid four">
-          <div className="stat-box accent"><div className="sv">{s.goals}</div><div className="sl">Goles</div></div>
-          <div className="stat-box blue"><div className="sv">{s.assists}</div><div className="sl">Asistencias</div></div>
-          <div className="stat-box"><div className="sv">{s.matches}</div><div className="sl">Partidos ({s.starts} tit.)</div></div>
-          <div className="stat-box gold"><div className="sv">{s.mins}'</div><div className="sl">Minutos</div></div>
-          <div className="stat-box"><div className="sv">{avgMins}'</div><div className="sl">Media/partido</div></div>
-          <div className="stat-box"><div className="sv">{s.cleanSheets}</div><div className="sl">P. a cero</div></div>
+          <div className="stat-box accent"><div className="sv">{s.mins}'</div><div className="sl">Minutos</div></div>
+          <div className="stat-box"><div className="sv">{s.matches}</div><div className="sl">Partidos · {s.starts} tit.</div></div>
+          <div className="stat-box"><div className="sv">{s.goals}</div><div className="sl">Goles</div></div>
+          <div className="stat-box"><div className="sv">{s.assists}</div><div className="sl">Asistencias</div></div>
+          <div className="stat-box"><div className="sv">{s.avgMins}'</div><div className="sl">Media / partido</div></div>
+          <div className="stat-box"><div className="sv">{s.minsPct}%</div><div className="sl">De los minutos</div></div>
           <div className="stat-box gold"><div className="sv">{s.yellows}</div><div className="sl">Amarillas</div></div>
           <div className="stat-box red"><div className="sv">{s.reds}</div><div className="sl">Rojas</div></div>
         </div>
+
         <div className="card">
           <div className="between" style={{ marginBottom: 8 }}>
             <span className="small muted">Asistencia a entrenos</span>
             <span className="bold num">{s.trains}/{s.totalTrains} <span className="muted" style={{ fontWeight: 400 }}>({s.attPct}%)</span></span>
           </div>
-          <Progress pct={s.attPct} tone={s.attPct >= 80 ? undefined : s.attPct >= 50 ? 'gold' : 'red'} />
+          <Progress pct={s.attPct} tone={s.attPct >= 80 ? 'green' : s.attPct >= 50 ? 'gold' : 'red'} />
+          <div className="between" style={{ marginTop: 12 }}>
+            <span className="small muted">Convocatorias</span>
+            <span className="bold num">{s.called}/{s.totalCallups}</span>
+          </div>
         </div>
 
         <div className="sec-label">
           {ev ? `Última evaluación (${fmtDate(ev.date)})` : 'Evaluación'}
-          <button className="btn btn-g btn-xs" onClick={() => openSheet({ kind: 'eval', playerId: p.id })}>+ Evaluar</button>
+          <button className="link" onClick={() => openSheet({ kind: 'eval', playerId: p.id })}>+ Evaluar</button>
         </div>
         {ev ? (
           <div className="card">
@@ -95,15 +102,21 @@ export default function PlayerDetail() {
           </div>
         ) : <div className="card small muted">Aún sin evaluar.</div>}
 
-        {events.length > 0 && (
+        {history.length > 0 && (
           <>
-            <div className="sec-label">Participaciones</div>
-            <div className="card flush" style={{ padding: '6px 0' }}>
-              {events.slice(0, 15).map((e) => (
-                <button key={e.k} className="ev-row" style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left' }} onClick={() => nav(`/partidos/${e.m.id}`)}>
-                  <div className="ev-min">{e.min ?? '?'}'</div>
-                  <span style={{ fontSize: 16 }} aria-hidden>{e.icon}</span>
-                  <div><div className="small bold">vs {e.m.rival}</div><div className="xs muted">{fmtDate(e.m.date)} · {e.detail}</div></div>
+            <div className="sec-label">Partidos</div>
+            <div className="card flush">
+              {history.slice(0, 15).map(({ m, e, goals, assists, cards }) => (
+                <button key={m.id} className="row" onClick={() => nav(`/partidos/${m.id}`)}>
+                  <div className="ri">
+                    <div className="rn">vs {m.rival}</div>
+                    <div className="rm">{fmtDate(m.date)} · {e ? `${e.role === 'TIT' ? 'Titular' : 'Suplente'} ${e.mins}'` : 'No jugó'}</div>
+                  </div>
+                  <div className="chips" style={{ flexShrink: 0 }}>
+                    {goals > 0 && <span className="badge b-blue">⚽ {goals}</span>}
+                    {assists > 0 && <span className="badge b-gray">🅰 {assists}</span>}
+                    {cards.map((c) => <span key={c.id} aria-label={c.type === 'Y' ? 'Amarilla' : 'Roja'}>{c.type === 'Y' ? '🟨' : '🟥'}</span>)}
+                  </div>
                 </button>
               ))}
             </div>
@@ -111,8 +124,8 @@ export default function PlayerDetail() {
         )}
 
         <div style={{ display: 'flex', gap: 10, padding: '6px var(--pad) 0' }}>
-          <button className="btn btn-g" style={{ flex: 1 }} onClick={toggleArchive}>{p.archived_at ? '↺ Reactivar' : '📦 Dar de baja'}</button>
-          <button className="btn btn-danger" style={{ flex: 1 }} onClick={del}>🗑️ Eliminar</button>
+          <button className="btn btn-g" style={{ flex: 1 }} onClick={toggleArchive}>{p.archived_at ? <><RotateCcw className="ico-sm" /> Reactivar</> : <><Archive className="ico-sm" /> Dar de baja</>}</button>
+          <button className="btn btn-danger" style={{ flex: 1 }} onClick={del}><Trash2 className="ico-sm" /> Eliminar</button>
         </div>
         <div className="spacer" />
       </div>

@@ -40,3 +40,29 @@ export async function shareText(title: string, text: string): Promise<'shared' |
     return 'failed';
   }
 }
+
+const blobToBase64 = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+
+/** Descarga (web) o comparte (nativo) un archivo binario: PNG, PDF, XLSX… */
+export async function saveBlob(filename: string, blob: Blob) {
+  if (isNative) {
+    const data = await blobToBase64(blob);
+    const res = await Filesystem.writeFile({ path: filename, data, directory: Directory.Cache });
+    await Share.share({ title: filename, url: res.uri, dialogTitle: 'Guardar archivo' });
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}

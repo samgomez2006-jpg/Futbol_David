@@ -1,3 +1,4 @@
+import { Download, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Field, Sheet } from '../components/Sheet';
 import { makeBackup, parseBackup } from '../lib/backup';
@@ -6,10 +7,12 @@ import { todayISO } from '../lib/dates';
 import { uid } from '../lib/id';
 import { saveTextFile } from '../lib/platform';
 import { activePlayers, sortPlayers } from '../lib/stats';
-import type { Callup, CallupStatus, Evaluation, Foot, Objective, ObjectiveCategory, Position, Training } from '../lib/types';
+import type { Evaluation, Foot, Objective, ObjectiveCategory, Position, Training } from '../lib/types';
 import { useStore } from '../store/store';
 import { confirmDialog, toast, useUI, type SheetSpec } from '../store/ui';
-import { MatchSheet } from './MatchSheet';
+import { CallupSheet } from './CallupSheet';
+import { MatchSheet } from './match/MatchSheet';
+import { TeamSheet } from './TeamSheet';
 
 const Cancel = ({ onClose }: { onClose: () => void }) => (
   <button className="btn btn-g" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
@@ -209,72 +212,11 @@ export function ObjectiveSheet({ onClose }: { onClose: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
-export function CallupSheet({ id, onClose }: { id?: string; onClose: () => void }) {
-  const data = useStore((s) => s.data);
-  const upsert = useStore((s) => s.upsert);
-  const c = id ? data.callups.find((x) => x.id === id) : undefined;
-  const [rival, setRival] = useState(c?.rival ?? '');
-  const [date, setDate] = useState(c?.date ?? todayISO());
-  const [meet, setMeet] = useState(c?.meet_time ?? '');
-  const [place, setPlace] = useState(c?.place ?? '');
-  // Copia local: cancelar no modifica la convocatoria (en el original sí se mutaba).
-  const [state, setState] = useState<Callup['players']>(() => (c?.players ?? []).map((x) => ({ ...x })));
-  const roster = sortPlayers(activePlayers(data));
-  const statusOf = (pid: string): CallupStatus => state.find((x) => x.pid === pid)?.status ?? 'pending';
-  const setStatus = (pid: string, s: CallupStatus) => {
-    const next = statusOf(pid) === s ? 'pending' : s;
-    setState([...state.filter((x) => x.pid !== pid), { pid, status: next }]);
-  };
-
-  const save = () => {
-    if (!rival.trim()) return toast('Escribe el rival');
-    upsert('callups', { id: c?.id ?? uid(), team_id: '', rival: rival.trim(), date: date || todayISO(), meet_time: meet.trim(), place: place.trim(), players: state.filter((x) => x.status !== 'pending' || roster.some((p) => p.id === x.pid)) });
-    toast('Convocatoria guardada ✓');
-    onClose();
-  };
-
-  return (
-    <Sheet title={c ? 'Editar convocatoria' : 'Nueva convocatoria'} onClose={onClose}
-      actions={<><Cancel onClose={onClose} /><button className="btn btn-p" style={{ flex: 2 }} onClick={save}>Guardar</button></>}>
-      <div className="frow">
-        <Field label="Rival" className=""><input value={rival} onChange={(e) => setRival(e.target.value)} placeholder="Nombre del rival" maxLength={80} /></Field>
-        <Field label="Fecha" className=""><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-      </div>
-      <div className="frow">
-        <Field label="Hora de citación" className=""><input value={meet} onChange={(e) => setMeet(e.target.value)} placeholder="10:00" maxLength={40} /></Field>
-        <Field label="Lugar" className=""><input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="Campo municipal" maxLength={120} /></Field>
-      </div>
-      <div className="sec-label">Jugadores · {state.filter((x) => x.status === 'confirmed').length} convocados</div>
-      {roster.map((p) => {
-        const st = statusOf(p.id);
-        return (
-          <div className="check-row" key={p.id}>
-            <div className="grow"><div className="bold small">{p.name}</div><div className="muted xs">{p.position}</div></div>
-            <button className={`chip ${st === 'confirmed' ? 'sel' : ''}`} onClick={() => setStatus(p.id, 'confirmed')} aria-pressed={st === 'confirmed'} aria-label={`Convocar a ${p.name}`}>✓ Va</button>
-            <button className={`chip ${st === 'declined' ? 'sel-red' : ''}`} onClick={() => setStatus(p.id, 'declined')} aria-pressed={st === 'declined'} aria-label={`Baja de ${p.name}`}>✕ Baja</button>
-          </div>
-        );
-      })}
-    </Sheet>
-  );
-}
-
-// ---------------------------------------------------------------------------
-export function SettingsSheet({ onClose }: { onClose: () => void }) {
+export function BackupSheet({ onClose }: { onClose: () => void }) {
   const team = useStore((s) => s.team);
   const data = useStore((s) => s.data);
-  const updateTeam = useStore((s) => s.updateTeam);
   const bulkAdd = useStore((s) => s.bulkAdd);
-  const [name, setName] = useState(team.name);
-  const [season, setSeason] = useState(team.season);
-  const [category, setCategory] = useState(team.category);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const save = () => {
-    updateTeam({ name: name.trim() || 'Mi Equipo FC', season: season.trim(), category: category.trim() });
-    toast('Configuración guardada');
-    onClose();
-  };
 
   const exportData = async () => {
     const file = `${team.name.replace(/[^\w-]+/g, '_')}_${todayISO()}.json`;
@@ -301,18 +243,11 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Sheet title="Configuración del equipo" onClose={onClose}
-      actions={<><Cancel onClose={onClose} /><button className="btn btn-p" style={{ flex: 2 }} onClick={save}>Guardar</button></>}>
-      <Field label="Nombre del equipo"><input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} /></Field>
-      <div className="frow">
-        <Field label="Temporada" className=""><input value={season} onChange={(e) => setSeason(e.target.value)} maxLength={20} /></Field>
-        <Field label="Categoría" className=""><input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Alevín A…" maxLength={60} /></Field>
-      </div>
-      <div className="sec-label">Copia de seguridad</div>
-      <p className="hint">Exporta un JSON con todo el equipo. También puedes importar las copias de la versión anterior (HTML).</p>
+    <Sheet title="Copias de seguridad" onClose={onClose}>
+      <p className="hint">Exporta un archivo .json con todo el equipo (plantilla, partidos, jugadas…). También puedes importar copias de la versión anterior de la app.</p>
       <div style={{ padding: '0 var(--pad) 6px', display: 'flex', gap: 10 }}>
-        <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={exportData}>📤 Exportar</button>
-        <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => fileRef.current?.click()}>📥 Importar</button>
+        <button className="btn btn-g" style={{ flex: 1 }} onClick={exportData}><Download className="ico-sm" /> Exportar</button>
+        <button className="btn btn-g" style={{ flex: 1 }} onClick={() => fileRef.current?.click()}><Upload className="ico-sm" /> Importar</button>
       </div>
       <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => {
         const f = e.target.files?.[0];
@@ -339,12 +274,13 @@ export function SheetHost() {
 function SheetFor({ spec, onClose }: { spec: SheetSpec; onClose: () => void }) {
   switch (spec.kind) {
     case 'player': return <PlayerSheet id={spec.id} onClose={onClose} />;
-    case 'match': return <MatchSheet id={spec.id} onClose={onClose} />;
+    case 'match': return <MatchSheet id={spec.id} tab={spec.tab} onClose={onClose} />;
     case 'training': return <TrainingSheet id={spec.id} onClose={onClose} />;
     case 'eval': return <EvalSheet playerId={spec.playerId} onClose={onClose} />;
     case 'objective': return <ObjectiveSheet onClose={onClose} />;
     case 'callup': return <CallupSheet id={spec.id} onClose={onClose} />;
-    case 'settings': return <SettingsSheet onClose={onClose} />;
+    case 'team': return <TeamSheet onClose={onClose} />;
+    case 'backup': return <BackupSheet onClose={onClose} />;
   }
 }
 

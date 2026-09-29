@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { parseBackup } from '../lib/backup';
 import { TRASH_DAYS } from '../lib/constants';
-import { seedFor } from '../lib/seed';
 import { currentSeason } from '../lib/dates';
 import { uid } from '../lib/id';
+import { normalizeDataset, normalizeProfile, normalizeTeam } from '../lib/normalize';
 import { storage } from '../lib/storage';
-import { emptyDataset, TABLES, type Dataset, type TableName, type Team } from '../lib/types';
+import { emptyDataset, emptyProfile, TABLES, type Dataset, type TableName, type Team } from '../lib/types';
 
 // ---------------------------------------------------------------------------
 // Estado persistido
@@ -26,8 +26,10 @@ export type Mode = 'guest' | 'cloud';
 export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error';
 
 interface Persisted {
-  v: 5;
+  v: 6;
   mode: Mode;
+  /** Usuario de Supabase al que pertenecen los datos en modo nube (aísla cuentas en un mismo dispositivo). */
+  ownerId: string | null;
   team: Team;
   data: Dataset;
   outbox: Mutation[];
@@ -46,7 +48,7 @@ interface State extends Persisted {
   upsert: <T extends TableName>(table: T, row: Row<T>) => void;
   remove: (table: TableName, id: string) => void;
   updateTeam: (patch: Partial<Omit<Team, 'id'>>) => void;
-  /** Sustituye/añade datos en bloque (importación). Encola todo si hay nube. */
+  /** Añade datos en bloque (importación). Encola todo si hay nube. */
   bulkAdd: (data: Dataset) => void;
   _set: (patch: Partial<State>) => void;
 }
@@ -54,7 +56,7 @@ interface State extends Persisted {
 const KEY = 'mef_state_v5';
 const LEGACY_KEY = 'miecfc_v4';
 
-export const newGuestTeam = (): Team => ({ id: uid(), name: 'Mi Equipo FC', season: currentSeason(), category: '' });
+export const newGuestTeam = (): Team => ({ id: uid(), name: 'Mi Equipo FC', season: currentSeason(), category: '', profile: emptyProfile() });
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let onChange: (() => void) | null = null;
@@ -65,11 +67,24 @@ function persistSoon() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => void persistNow(), 150);
 }
+const snapshot = (): Persisted => {
+  const s = useStore.getState();
+  return { v: 6, mode: s.mode, ownerId: s.ownerId, team: s.team, data: s.data, outbox: s.outbox, lastSyncAt: s.lastSyncAt };
+};
 export async function persistNow() {
   clearTimeout(saveTimer);
-  const s = useStore.getState();
-  const p: Persisted = { v: 5, mode: s.mode, team: s.team, data: s.data, outbox: s.outbox, lastSyncAt: s.lastSyncAt };
-  await storage.set(KEY, p);
+  await storage.set(KEY, snapshot());
+}
+
+// Al cerrar la pestaña o pasar la app a segundo plano se guarda al instante (el guardado normal va con 150 ms de margen).
+if (typeof window !== 'undefined') {
+  const flushNow = () => {
+    if (!useStore.getState().ready) return;
+    clearTimeout(saveTimer);
+    if (!storage.setSync(KEY, snapshot())) void persistNow();
+  };
+  window.addEventListener('pagehide', flushNow);
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flushNow());
 }
 
 /** Añade una mutación fusionándola con las pendientes del mismo registro. */
@@ -85,10 +100,13 @@ function purgeOldTrash(data: Dataset): { data: Dataset; purged: string[] } {
   return { data: { ...data, matches: data.matches.filter((m) => !purged.includes(m.id)) }, purged };
 }
 
+const teamRow = (t: Team) => ({ name: t.name, season: t.season, category: t.category, profile: t.profile });
+
 export const useStore = create<State>((set, get) => ({
-  v: 5,
+  v: 6,
   ready: false,
   mode: 'guest',
+  ownerId: null,
   team: newGuestTeam(),
   data: emptyDataset(),
   outbox: [],
@@ -98,7 +116,8 @@ export const useStore = create<State>((set, get) => ({
   syncError: null,
 
   async hydrate() {
-    let p = await storage.get<Persisted>(KEY);
+    type Stored = Omit<Persisted, 'v' | 'ownerId'> & { v: number; ownerId?: string | null };
+    let p = await storage.get<Stored>(KEY);
     if (!p) {
       // Primera ejecución: intenta recuperar los datos del HTML original si están en este mismo origen.
       try {
@@ -106,28 +125,21 @@ export const useStore = create<State>((set, get) => ({
         if (legacy) {
           const team = newGuestTeam();
           const parsed = parseBackup(JSON.parse(legacy), team.id);
-          p = { v: 5, mode: 'guest', team: { ...team, ...parsed.team }, data: parsed.data, outbox: [], lastSyncAt: null };
+          p = { v: 6, mode: 'guest', team: { ...team, ...parsed.team }, data: parsed.data, outbox: [], lastSyncAt: null };
         }
       } catch {
         /* datos antiguos corruptos: se ignoran */
       }
     }
-    // Dispositivo vacío en modo local → carga el equipo del repositorio (SAGRAT_COR_backup.json).
-    const blank = !p || (p.mode === 'guest' && TABLES.every((t) => !p!.data?.[t]?.length));
-    if (blank) {
-      const team = p?.team ?? newGuestTeam();
-      const seed = seedFor(team.id);
-      p = { v: 5, mode: 'guest', team: { ...team, ...seed.team }, data: seed.data, outbox: [], lastSyncAt: null };
-    }
     if (p) {
-      const data = { ...emptyDataset(), ...p.data };
-      const { data: clean, purged } = purgeOldTrash(data);
+      const { data: clean, purged } = purgeOldTrash(normalizeDataset(p.data));
       let outbox = p.outbox ?? [];
       if (p.mode === 'cloud') for (const id of purged) outbox = enqueue(outbox, { table: 'matches', op: 'delete', rowId: id });
-      set({ mode: p.mode, team: p.team, data: clean, outbox, lastSyncAt: p.lastSyncAt ?? null });
-      if (purged.length || !p.outbox) persistSoon();
-    } else {
-      persistSoon();
+      set({
+        mode: p.mode, ownerId: p.ownerId ?? null, team: normalizeTeam(p.team), data: clean, outbox,
+        lastSyncAt: p.lastSyncAt ?? null,
+      });
+      if (purged.length || p.v !== 6) persistSoon();
     }
     set({ ready: true });
   },
@@ -154,6 +166,7 @@ export const useStore = create<State>((set, get) => ({
       data.evaluations = data.evaluations.filter((e) => e.player_id !== id);
       data.objectives = data.objectives.filter((o) => o.player_id !== id);
     }
+    if (table === 'callups') data.matches = data.matches.map((m) => (m.callup_id === id ? { ...m, callup_id: null } : m));
     set({ data, outbox: s.mode === 'cloud' ? enqueue(s.outbox, { table, op: 'delete', rowId: id }) : s.outbox });
     persistSoon();
     onChange?.();
@@ -161,12 +174,10 @@ export const useStore = create<State>((set, get) => ({
 
   updateTeam(patch) {
     const s = get();
-    const team = { ...s.team, ...patch };
+    const team = { ...s.team, ...patch, profile: patch.profile ? normalizeProfile(patch.profile) : s.team.profile };
     set({
       team,
-      outbox: s.mode === 'cloud'
-        ? enqueue(s.outbox, { table: 'teams', op: 'upsert', rowId: team.id, row: { name: team.name, season: team.season, category: team.category } })
-        : s.outbox,
+      outbox: s.mode === 'cloud' ? enqueue(s.outbox, { table: 'teams', op: 'upsert', rowId: team.id, row: teamRow(team) }) : s.outbox,
     });
     persistSoon();
     onChange?.();
@@ -193,10 +204,11 @@ export const useStore = create<State>((set, get) => ({
   },
 }));
 
-/** Encola TODO el contenido local (al pasar de invitado a nube). Jugadores primero por las FK. */
+/** Encola TODO el contenido local (al pasar de invitado a nube). El orden lo fija el sync por dependencias. */
 export function enqueueEverything(): Mutation[] {
   const s = useStore.getState();
   let outbox = s.outbox;
+  outbox = enqueue(outbox, { table: 'teams', op: 'upsert', rowId: s.team.id, row: teamRow(s.team) });
   for (const t of TABLES) {
     for (const r of s.data[t] as { id: string }[]) {
       outbox = enqueue(outbox, { table: t, op: 'upsert', rowId: r.id, row: { ...r, team_id: s.team.id } });

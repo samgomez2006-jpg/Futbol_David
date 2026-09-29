@@ -38,3 +38,19 @@ export function currentSeason(now = new Date()): string {
 
 export const compareDateDesc = (a: { date: ISODate }, b: { date: ISODate }) =>
   a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+
+const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+/** «sáb 4 oct» — para tarjetas de próximo partido. */
+export function fmtWeekday(d: ISODate): string {
+  const [y, m, day] = d.split('-').map(Number);
+  const dt = new Date(y, m - 1, day);
+  return `${WEEKDAYS[dt.getDay()]} ${day} ${MONTHS[m - 1]}`;
+}
+
+/** Días que faltan hasta una fecha (0 = hoy, negativo = pasada). */
+export function daysUntil(d: ISODate, now = new Date()): number {
+  const [y, m, day] = d.split('-').map(Number);
+  const a = Date.UTC(y, m - 1, day);
+  const b = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((a - b) / 864e5);
+}

@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 
 // En nativo usa almacenamiento persistente del sistema (UserDefaults / SharedPreferences),
@@ -13,6 +14,19 @@ export const storage = {
   },
   async set(key: string, value: unknown): Promise<void> {
     await Preferences.set({ key, value: JSON.stringify(value) });
+  },
+  /**
+   * Escritura SÍNCRONA (solo web) para el momento de cerrar la pestaña, cuando no hay tiempo de esperar a promesas.
+   * Usa la misma clave que el plugin Preferences en web ('CapacitorStorage.' + clave).
+   */
+  setSync(key: string, value: unknown): boolean {
+    if (Capacitor.isNativePlatform()) return false;
+    try {
+      localStorage.setItem(`CapacitorStorage.${key}`, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
   },
   async remove(key: string): Promise<void> {
     await Preferences.remove({ key });

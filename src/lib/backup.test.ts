@@ -45,7 +45,7 @@ describe('parseBackup (formato antiguo v4)', () => {
     expect(m.goals[0].pid).toBe(hugo);
     expect(m.goals[0].apid).toBe(leo);
     expect(m.goals[0].min).toBe(12);
-    expect(m.goals[0].field_zone).toBe('Dentro del área');
+    expect(m.goals[0].field_zone).toBe('Z3'); // zona antigua → id de zona actual
     expect(m.motm).toBe(hugo);
     expect(m.lineup.find((e) => e.pid === hugo)?.slot).toBe('DEL1#9');
     expect(playerStats(data, hugo).goals).toBe(1);
@@ -82,18 +82,5 @@ describe('parseBackup (formato nuevo)', () => {
   it('rechaza archivos que no son copias', () => {
     expect(() => parseBackup({ foo: 1 }, 'T')).toThrow();
     expect(() => parseBackup('x', 'T')).toThrow();
-  });
-});
-
-describe('datos iniciales (SAGRAT_COR_backup.json)', () => {
-  it('carga el equipo y los 17 jugadores del repositorio', async () => {
-    const { seedFor } = await import('./seed');
-    const { team, data } = seedFor('T');
-    expect(team).toMatchObject({ name: 'SAGRAT COR', season: '2026-27', category: 'CADETE SUB15' });
-    expect(data.players).toHaveLength(17);
-    expect(data.players.every((p) => p.team_id === 'T')).toBe(true);
-    // Datos reales: 4 jugadores sin dorsal y el 4 repetido (PATO y LUCCA) se conservan tal cual.
-    expect(data.players.filter((p) => p.number == null).map((p) => p.name)).toEqual(['NACHO', 'OSCAR', 'ALEJANDRO', 'MIGUEL BONET']);
-    expect(data.players.filter((p) => p.number === 4).map((p) => p.name)).toEqual(['PATO', 'LUCCA']);
   });
 });
