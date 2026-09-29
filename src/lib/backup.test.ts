@@ -84,3 +84,14 @@ describe('parseBackup (formato nuevo)', () => {
     expect(() => parseBackup('x', 'T')).toThrow();
   });
 });
+
+describe('equipo de partida SAGRAT COR (incluido en la app)', () => {
+  it('se carga con su plantilla completa y datos coherentes', async () => {
+    const { seedFor } = await import('./seed');
+    const { team, data } = seedFor('T');
+    expect(team).toMatchObject({ name: 'SAGRAT COR', season: '2026-27', category: 'CADETE SUB15' });
+    expect(data.players).toHaveLength(17);
+    expect(data.players.every((p) => p.team_id === 'T' && p.name)).toBe(true);
+    expect(data.players.map((p) => p.position)).toContain('Portero');
+  });
+});

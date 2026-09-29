@@ -126,6 +126,8 @@ ya están configuradas en el proyecto.
 
 ## Datos de partida
 
-Ya no se incluyen datos dentro de la app (cualquiera podría leerlos). Al entrar por primera vez, la bienvenida permite **importar
-una copia .json**: por ejemplo `SAGRAT_COR_backup.json` (17 jugadores, Cadete Sub15) o las copias de la versión anterior.
-> ⚠️ Ese archivo contiene nombres de jugadores menores y el repositorio es público: conviene sacarlo del repositorio.
+`SAGRAT_COR_backup.json` (SAGRAT COR · Cadete Sub15 · 2026-27, 17 jugadores) va incluido en la app: en la pantalla de bienvenida
+aparece **«Cargar el equipo SAGRAT COR»**, que crea el equipo en tu cuenta con toda la plantilla en un clic. No se aplica solo ni
+encima de datos existentes. También se puede importar cualquier otra copia .json.
+> ⚠️ **Pendiente de seguridad:** al ir dentro de la app, cualquier visitante de la web puede leer esos datos (nombres de menores).
+> La fase de seguridad debe sacarlos del código público (por ejemplo, cargarlos solo desde la base de datos con permisos).

@@ -2,6 +2,7 @@ import { FileUp, LogOut, Plus, Users } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { parseBackup } from '../lib/backup';
 import { currentSeason } from '../lib/dates';
+import { seedFor } from '../lib/seed';
 import { useAuth } from '../store/auth';
 import { useStore } from '../store/store';
 import { adoptTeam, createCloudTeam, hasLocalData, joinWithCode, signOut } from '../store/sync';
@@ -35,6 +36,14 @@ export function Onboarding() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const loadSeed = () => {
+    const seed = seedFor('tmp');
+    return run(
+      () => createCloudTeam(who, { name: seed.team.name, season: seed.team.season || currentSeason(), category: seed.team.category }, { keepLocal: false, extra: seed.data }).then(() => useStore.getState().updateTeam({ profile: seed.team.profile })),
+      `Equipo «${seed.team.name}» cargado ✓`,
+    );
   };
 
   const importFile = async (f: File) => {
@@ -94,6 +103,12 @@ export function Onboarding() {
               <button className="option-card" disabled={busy} onClick={() => void run(() => createCloudTeam(who, { name: localTeam.name, season: localTeam.season, category: localTeam.category }, { keepLocal: true }), 'Equipo creado con tus datos ✓')}>
                 <Users className="ico-lg" />
                 <span><span className="ot">Usar los datos de este dispositivo</span><br /><span className="os">«{localTeam.name}» · {localSummary}. Se guardarán en tu cuenta.</span></span>
+              </button>
+            )}
+            {!form && (
+              <button className="option-card" disabled={busy} onClick={() => void loadSeed()} style={{ borderColor: 'var(--accent-d)' }}>
+                <Users className="ico-lg" />
+                <span><span className="ot">Cargar el equipo SAGRAT COR</span><br /><span className="os">Cadete Sub15 · 2026-27 · plantilla de 17 jugadores lista para usar.</span></span>
               </button>
             )}
             {!form ? (
