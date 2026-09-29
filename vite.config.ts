@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import type { Connect, Plugin } from 'vite';
 import pkg from './package.json' with { type: 'json' };
-import { fcfResponse } from './src/server/fcf';
+import { fcfResponse } from './src/server/fcf.js';
 
 /** En desarrollo y en `vite preview` sirve /api/fcf igual que la función de Vercel. */
 function fcfApi(): Plugin {
