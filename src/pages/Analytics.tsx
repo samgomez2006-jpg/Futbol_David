@@ -2,6 +2,7 @@ import { BarChart3, Lightbulb, MessageSquareText, TrendingUp, TriangleAlert } fr
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Empty, Progress, TopBar } from '../components/bits';
+import { PairBars } from '../components/Charts';
 import { ExportButton } from '../components/ExportButton';
 import { ZoneBubbleMap } from '../components/Zones';
 import { analyse, fmtPct, type Analysis, type Finding, type ZoneAnalysis } from '../lib/analytics';
@@ -20,29 +21,6 @@ function FindingCard({ f }: { f: Finding }) {
       <Icon className="ico" />
       <div><div className="fa">{f.area}</div><div className="ft">{f.title}</div><div className="fx">{f.text}</div></div>
     </div>
-  );
-}
-
-/** Barras dobles (a favor / en contra). Marcas finas, etiqueta solo con valor > 0. */
-function PairBars({ items, aLabel = 'A favor', bLabel = 'En contra' }: { items: { label: string; a: number; b: number }[]; aLabel?: string; bLabel?: string }) {
-  const max = Math.max(1, ...items.flatMap((i) => [i.a, i.b]));
-  const cols = { gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` };
-  return (
-    <>
-      <div className="bars2" style={cols}>
-        {items.map((it) => (
-          <div className="bar-col" key={it.label} role="img" aria-label={`${it.label}: ${it.a} ${aLabel.toLowerCase()}, ${it.b} ${bLabel.toLowerCase()}`}>
-            <div className="bar">{it.a > 0 && <b>{it.a}</b>}<i style={{ height: `${(it.a / max) * 78}%`, background: 'var(--series-for)' }} /></div>
-            <div className="bar">{it.b > 0 && <b>{it.b}</b>}<i style={{ height: `${(it.b / max) * 78}%`, background: 'var(--series-against)' }} /></div>
-          </div>
-        ))}
-      </div>
-      <div className="bars-x" style={cols}>{items.map((i) => <span key={i.label}>{i.label}</span>)}</div>
-      <div className="legend">
-        <span><i className="swatch" style={{ background: 'var(--series-for)' }} />{aLabel}</span>
-        <span><i className="swatch" style={{ background: 'var(--series-against)' }} />{bLabel}</span>
-      </div>
-    </>
   );
 }
 

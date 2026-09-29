@@ -1,3 +1,5 @@
+import { planCalendar } from '../lib/fcf/calendar';
+import type { FcfGroupData } from '../lib/fcf/types';
 // Acciones de dominio que tocan varios registros a la vez, para que los datos introducidos una vez
 // se reutilicen: convocatoria → partido, partido → convocatoria.
 
@@ -58,4 +60,16 @@ export function saveMatch(match: Match) {
     const c = s.data.callups.find((x) => x.id === match.callup_id);
     if (c && (c.rival !== match.rival || c.date !== match.date)) useStore.getState().upsert('callups', { ...c, rival: match.rival, date: match.date });
   }
+}
+
+/** Aplica el calendario FCF a Partidos (ver lib/fcf/calendar.ts). Devuelve el resumen de cambios. */
+export function syncFcfCalendar(group: FcfGroupData) {
+  const s = useStore.getState();
+  const link = s.team.profile.fcf;
+  if (!link) throw new Error('Primero vincula la competición FCF');
+  const plan = planCalendar(s.data.matches, link, group, s.team.id);
+  for (const m of [...plan.create, ...plan.update]) s.upsert('matches', m);
+  const changedLinks = JSON.stringify(plan.links) !== JSON.stringify(link.links);
+  if (changedLinks) useStore.getState().updateTeam({ profile: { ...s.team.profile, fcf: { ...link, links: plan.links } } });
+  return { created: plan.create.length, updated: plan.update.length, linked: plan.linked, unchanged: plan.unchanged };
 }

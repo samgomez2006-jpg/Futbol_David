@@ -5,6 +5,7 @@ import { Empty, ResultBadge, resultColor, TopBar } from '../components/bits';
 import { TRASH_DAYS } from '../lib/constants';
 import { compareDateDesc, fmtDate, fmtWeekday } from '../lib/dates';
 import { callupOfMatch, playedMatches, resultOf, squadOf, teamSummary, trashedMatches, upcomingMatches } from '../lib/stats';
+import { SrcFcf } from '../components/FcfBits';
 import { useStore } from '../store/store';
 import { confirmDialog, openSheet, toast } from '../store/ui';
 
@@ -13,6 +14,7 @@ type Tab = 'proximos' | 'jugados' | 'papelera';
 
 export default function Matches() {
   const data = useStore((s) => s.data);
+  const fcfIds = new Set(Object.values(useStore((s) => s.team.profile.fcf?.links) ?? {}));
   const upsert = useStore((s) => s.upsert);
   const remove = useStore((s) => s.remove);
   const nav = useNavigate();
@@ -63,7 +65,7 @@ export default function Matches() {
                     <div className="avatar score" style={{ flexDirection: 'column', fontSize: 11, lineHeight: 1.1 }}><CalendarClock className="ico-sm" /></div>
                     <div className="ri">
                       <div className="rn">vs {m.rival}</div>
-                      <div className="rm">{fmtWeekday(m.date)}{callup?.meet_time ? ` · ${callup.meet_time}` : ''} · {m.venue === 'L' ? 'Local' : 'Visitante'}{m.competition ? ` · ${m.competition}` : ''}</div>
+                      <div className="rm">{fmtWeekday(m.date)}{callup?.meet_time ? ` · ${callup.meet_time}` : ''} · {m.venue === 'L' ? 'Local' : 'Visitante'}{m.competition ? ` · ${m.competition}` : ''}{fcfIds.has(m.id) && <> <SrcFcf /></>}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <span className="badge b-blue">Programado</span>
@@ -84,7 +86,7 @@ export default function Matches() {
               {played.map((m) => (
                 <button key={m.id} className="row" onClick={() => nav(`/partidos/${m.id}`)}>
                   <div className="avatar score num" style={{ color: resultColor[resultOf(m)] }}>{m.gf}-{m.ga}</div>
-                  <div className="ri"><div className="rn">vs {m.rival}</div><div className="rm">{fmtDate(m.date)} · {m.venue === 'L' ? 'Local' : 'Visitante'} · {m.tactic || '—'}{m.competition ? ` · ${m.competition}` : ''}</div></div>
+                  <div className="ri"><div className="rn">vs {m.rival}</div><div className="rm">{fmtDate(m.date)} · {m.venue === 'L' ? 'Local' : 'Visitante'} · {m.tactic || '—'}{m.competition ? ` · ${m.competition}` : ''}{fcfIds.has(m.id) && <> <SrcFcf /></>}</div></div>
                   <ResultBadge m={m} />
                 </button>
               ))}

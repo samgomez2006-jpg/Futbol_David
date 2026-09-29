@@ -10,6 +10,7 @@ import { activePlayers, sortPlayers } from '../lib/stats';
 import type { Arrival, Evaluation, Foot, Objective, ObjectiveCategory, Position } from '../lib/types';
 import { normalizeTraining } from '../lib/normalize';
 import { ArrivalEditor } from '../components/ArrivalEditor';
+import { FcfLinkSheet } from './FcfLinkSheet';
 import { useStore } from '../store/store';
 import { confirmDialog, toast, useUI, type SheetSpec } from '../store/ui';
 import { CallupSheet } from './CallupSheet';
@@ -293,6 +294,7 @@ function SheetFor({ spec, onClose }: { spec: SheetSpec; onClose: () => void }) {
     case 'callup': return <CallupSheet id={spec.id} onClose={onClose} />;
     case 'team': return <TeamSheet onClose={onClose} />;
     case 'backup': return <BackupSheet onClose={onClose} />;
+    case 'fcf': return <FcfLinkSheet onClose={onClose} />;
   }
 }
 

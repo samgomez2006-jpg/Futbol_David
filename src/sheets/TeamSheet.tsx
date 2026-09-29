@@ -31,6 +31,7 @@ export function TeamSheet({ onClose }: { onClose: () => void }) {
     updateTeam({
       name: name.trim() || 'Mi Equipo FC', season: season.trim(), category: category.trim(),
       profile: {
+        ...p,
         info: info.trim(), staff: staff.filter((s) => s.name.trim()).map((s) => ({ ...s, name: s.name.trim(), role: s.role.trim() })),
         system: systemSel === OTHER ? systemCustom.trim() : systemSel, model: model.trim(), principles: principles.trim(), ideas: ideas.trim(), other: other.trim(),
       },

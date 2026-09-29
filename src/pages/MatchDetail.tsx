@@ -2,6 +2,7 @@ import { ArrowLeftRight, CalendarClock, ClipboardCheck, MapPin, Pencil, Play, Tr
 import { Link, useNavigate, useParams } from 'react-router';
 import { ExportButton } from '../components/ExportButton';
 import { Empty, ResultBadge, resultColor, TextBlock, TopBar, posBadge } from '../components/bits';
+import { FcfMatchCard } from '../components/FcfMatchCard';
 import { Pitch } from '../components/Pitch';
 import { TRASH_DAYS } from '../lib/constants';
 import { fmtDate, fmtWeekday } from '../lib/dates';
@@ -174,6 +175,7 @@ export default function MatchDetail() {
         )}
 
         {/* Rival y planteamiento */}
+        <FcfMatchCard match={m} />
         <div className="sec-label"><span>Rival</span><EditLink tab="rival" id={m.id} label={hasRival ? 'Editar' : 'Añadir'} /></div>
         <div className="card">
           {hasRival ? (

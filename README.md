@@ -21,6 +21,27 @@ Producción: **https://futbol-david.vercel.app**
 | **Pizarra táctica** | Campo completo / medio / zona libre, jugadores, rivales, balón, conos, porterías, zonas y texto; movimientos, pases y conducciones; deshacer/rehacer, animación, guardar, editar, duplicar y exportar (PNG, PDF, JSON). |
 | **Exportar** | Excel (.xlsx), CSV y PDF de plantilla, partidos, goles, minutos, convocatorias, asistencia y analíticas (el PDF de analíticas es un **informe visual** con gráficos: resultados, evolución de goles, goles por parte y minuto, mapas de zonas, jugadores, minutos, tendencias); ficha de partido en PDF. |
 
+## Competición FCF (rama `claude/beautiful-lamport-ubjmej`, aún no en producción)
+
+*Equipo → Competición FCF → Vincular competición*: temporada, disciplina, categoría/competición, grupo, tu equipo y duración
+de cada parte. La vinculación se guarda en el perfil del equipo (`teams.profile.fcf`) y cada equipo de la cuenta tiene la suya.
+
+| Qué | De dónde sale | Notas |
+|---|---|---|
+| Calendario, resultados, clasificación oficial, goleadores del grupo | Datos del portal de competiciones de fcf.cat | Goleadores: la FCF publica solo los 50 primeros del grupo. |
+| Minuto de cada gol (partes y tramos) | Página pública de cada acta | Se leen bajo demanda y quedan en caché (las actas cerradas no cambian). |
+| Evolución en la clasificación | Calculada con los resultados publicados | Puede diferir de la oficial por sanciones o desempates. |
+| Análisis del rival, comparativa, frases clave | Calculado en la app | Solo con muestra suficiente; si falta un dato se muestra «No disponible». |
+
+- Los datos FCF se muestran siempre con la etiqueta **FCF** y con enlace *Ver competición en FCF* / *Acta*; nunca se mezclan con lo registrado a mano.
+- *Importar / actualizar calendario* crea tus partidos pendientes como programados, vincula los que ya tenías (misma fecha y rival) y solo actualiza
+  fecha o campo si cambian. Nunca duplica ni toca un partido ya jugado.
+- La ficha de partido reconoce al rival (por el vínculo del calendario o por el nombre) y ofrece **Análisis del rival** y el resultado oficial.
+- Técnica: la función `api/fcf.ts` (Vercel) lee la FCF con operaciones concretas y validadas, peticiones secuenciales, un identificador de cliente
+  y caché en la CDN. **Aviso:** el portal usa endpoints internos (`/api/competition/…`) que el `robots.txt` de la FCF excluye de rastreadores; se usan
+  por decisión del propietario del proyecto y pueden cambiar sin aviso. Si la FCF ofrece una API oficial, solo hay que cambiar `src/server/fcf.ts`.
+- En las apps nativas se llama a `https://futbol-david.vercel.app/api/fcf` (o a `VITE_FCF_API`), así que funcionará en móvil cuando esto llegue a producción.
+
 ## Zonas de gol
 
 La división del campo está definida **una sola vez** en `src/lib/zones.ts` (10 zonas sobre media pista, portería atacada arriba) y

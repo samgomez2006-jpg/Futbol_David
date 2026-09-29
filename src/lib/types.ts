@@ -1,3 +1,4 @@
+import type { FcfLink } from './fcf/types';
 // Modelo de datos. Los nombres de campo coinciden con las columnas de Supabase (snake_case)
 // para que el sync no necesite mapeos.
 
@@ -32,6 +33,8 @@ export interface TeamProfile {
   principles: string; // principios de juego
   ideas: string; // ideas y conceptos tácticos
   other: string; // otros aspectos
+  /** Competición FCF vinculada (opcional). */
+  fcf?: FcfLink | null;
 }
 export const emptyProfile = (): TeamProfile => ({ info: '', staff: [], system: '', model: '', principles: '', ideas: '', other: '' });
 

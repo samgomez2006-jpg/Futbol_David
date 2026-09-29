@@ -10,6 +10,8 @@ import Analytics from './pages/Analytics';
 import Attendance from './pages/Attendance';
 import { AuthScreen, NewPassword } from './pages/Auth';
 import Board from './pages/Board';
+import Competition from './pages/Competition';
+import RivalAnalysis from './pages/RivalAnalysis';
 import Evaluations from './pages/Evaluations';
 import Export from './pages/Export';
 import Home from './pages/Home';
@@ -88,6 +90,8 @@ function MainApp() {
             <Route path="/partidos/:id" element={<MatchDetail />} />
             <Route path="/analiticas" element={<Analytics />} />
             <Route path="/equipo" element={<Team />} />
+            <Route path="/competicion" element={<Competition />} />
+            <Route path="/competicion/equipo/:id" element={<RivalAnalysis />} />
             <Route path="/equipos" element={<Teams />} />
             <Route path="/cuenta" element={<Account />} />
             <Route path="/exportar" element={<Export />} />

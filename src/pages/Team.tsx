@@ -1,11 +1,12 @@
-import { ChevronRight, ArrowLeftRight, Download, Lightbulb, Pencil, Shield, Users, UserCog } from 'lucide-react';
+import { ChevronRight, ArrowLeftRight, Download, Lightbulb, Link2, Trophy, Pencil, Shield, Users, UserCog } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { IconBadge, TextBlock, TopBar } from '../components/bits';
 import { SyncPill } from '../components/SyncPill';
 import { useAuth } from '../store/auth';
 import { useStore } from '../store/store';
-import { openSheet } from '../store/ui';
+import { useFcf } from '../store/fcf';
+import { confirmDialog, openSheet } from '../store/ui';
 
 function Section({ icon, title, children, empty }: { icon: LucideIcon; title: string; children?: React.ReactNode; empty: string }) {
   return (
@@ -24,6 +25,11 @@ export default function Team() {
   const players = useStore((s) => s.data.players).filter((p) => !p.archived_at).length;
   const email = useAuth((s) => s.email);
   const p = team.profile;
+  const unlink = async () => {
+    if (!(await confirmDialog({ title: 'Desvincular competición', message: 'Se dejarán de mostrar los datos FCF. Tus partidos no se borran.', ok: 'Desvincular' }))) return;
+    useStore.getState().updateTeam({ profile: { ...p, fcf: null } });
+    useFcf.getState().forget(team.id);
+  };
 
   return (
     <div className="page">
@@ -58,6 +64,26 @@ export default function Team() {
             </>
           ) : undefined}
         </Section>
+
+        <div className="sec-label">Competición FCF</div>
+        <div className="card">
+          {p.fcf ? (
+            <>
+              <div className="bold">{p.fcf.competition.label}</div>
+              <div className="xs muted" style={{ marginBottom: 10 }}>{p.fcf.season.label} · {p.fcf.discipline.label} · {p.fcf.group.label} · {p.fcf.team.label}</div>
+              <div className="row-flex" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <Link className="btn btn-p btn-sm" to="/competicion"><Trophy className="ico-sm" /> Ver competición</Link>
+                <button className="btn btn-g btn-sm" onClick={() => openSheet({ kind: 'fcf' })}>Cambiar</button>
+                <button className="btn btn-g btn-sm" onClick={() => void unlink()}>Desvincular</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="small muted" style={{ marginBottom: 10 }}>Vincula tu equipo con su competición de la Federació Catalana de Futbol para tener calendario, resultados, clasificación, goleadores y análisis de rivales.</p>
+              <button className="btn btn-p btn-sm" onClick={() => openSheet({ kind: 'fcf' })}><Link2 className="ico-sm" /> Vincular competición</button>
+            </>
+          )}
+        </div>
 
         <div className="sec-label">Cuenta y datos</div>
         <div className="card flush">

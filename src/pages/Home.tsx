@@ -32,6 +32,7 @@ export default function Home() {
     { icon: Star, title: 'Evaluaciones', sub: `${data.evaluations.length} registradas`, to: '/evaluaciones' },
     { icon: Target, title: 'Objetivos', sub: `${data.objectives.length} definidos`, to: '/objetivos' },
     { icon: ClipboardCheck, title: 'Convocatorias', sub: 'Y asistencia', to: '/asistencia' },
+    { icon: Trophy, title: 'Competición FCF', sub: profile.fcf ? profile.fcf.group.label : 'Vincular', to: '/competicion' },
   ];
 
   return (

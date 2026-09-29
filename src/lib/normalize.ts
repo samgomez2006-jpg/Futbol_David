@@ -2,6 +2,7 @@
 // al modelo actual. Es idempotente: pasarlo dos veces no cambia nada.
 
 import { LEGACY_GOAL_TYPES } from './constants';
+import type { FcfLink, FcfOption } from './fcf/types';
 import { uid } from './id';
 import { emptyDataset, emptyPlan, emptyProfile, emptyRival, type Arrival, type Dataset, type Match, type Punctuality, type Team, type TeamProfile, type Training, type TrainingAttendance } from './types';
 import { normalizeZone } from './zones';
@@ -19,7 +20,21 @@ export function normalizeProfile(p: unknown): TeamProfile {
   const staff = Array.isArray(p.staff)
     ? p.staff.filter(isObj).map((s) => ({ id: typeof s.id === 'string' ? s.id : uid(), name: String(s.name ?? '').slice(0, 80), role: String(s.role ?? '').slice(0, 60) }))
     : [];
-  return { ...base, ...strs({ info: '', system: '', model: '', principles: '', ideas: '', other: '' }, p), staff };
+  return { ...base, ...strs({ info: '', system: '', model: '', principles: '', ideas: '', other: '' }, p), staff, fcf: normalizeFcfLink(p.fcf) };
+}
+
+const opt = (x: unknown): FcfOption | null =>
+  isObj(x) && typeof x.id === 'string' && /^\d{1,12}$/.test(x.id) ? { id: x.id, label: String(x.label ?? '').slice(0, 120) } : null;
+
+/** Vinculación FCF guardada en el perfil del equipo; si algo no es válido se descarta entera. */
+export function normalizeFcfLink(x: unknown): FcfLink | null {
+  if (!isObj(x)) return null;
+  const [season, discipline, competition, group, team] = [x.season, x.discipline, x.competition, x.group, x.team].map(opt);
+  if (!season || !discipline || !competition || !group || !team) return null;
+  const half = typeof x.halfMins === 'number' && x.halfMins >= 10 && x.halfMins <= 60 ? Math.round(x.halfMins) : 40;
+  const links: Record<string, string> = {};
+  if (isObj(x.links)) for (const [k, v] of Object.entries(x.links)) if (/^\d{1,12}$/.test(k) && typeof v === 'string') links[k] = v;
+  return { season, discipline, competition, group, team, halfMins: half, links, linkedAt: typeof x.linkedAt === 'string' ? x.linkedAt : new Date().toISOString() };
 }
 
 export function normalizeTeam(t: Team | (Omit<Team, 'profile'> & { profile?: unknown })): Team {

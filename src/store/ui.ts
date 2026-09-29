@@ -9,7 +9,8 @@ export type SheetSpec =
   | { kind: 'objective' }
   | { kind: 'callup'; id?: string }
   | { kind: 'team' }
-  | { kind: 'backup' };
+  | { kind: 'backup' }
+  | { kind: 'fcf' };
 
 interface ConfirmSpec {
   title: string;
