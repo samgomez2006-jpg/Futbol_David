@@ -22,6 +22,7 @@ import PlayerDetail from './pages/PlayerDetail';
 import Players from './pages/Players';
 import Plays from './pages/Plays';
 import Team from './pages/Team';
+import Teams from './pages/Teams';
 import { SheetHost } from './sheets/Sheets';
 import { useAuth } from './store/auth';
 import { useStore } from './store/store';
@@ -87,6 +88,7 @@ function MainApp() {
             <Route path="/partidos/:id" element={<MatchDetail />} />
             <Route path="/analiticas" element={<Analytics />} />
             <Route path="/equipo" element={<Team />} />
+            <Route path="/equipos" element={<Teams />} />
             <Route path="/cuenta" element={<Account />} />
             <Route path="/exportar" element={<Export />} />
             <Route path="/asistencia" element={<Attendance />} />

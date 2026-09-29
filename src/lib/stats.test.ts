@@ -20,8 +20,8 @@ function dataset(): Dataset {
     match({ date: '2099-01-01', rival: 'Futuro', status: 'scheduled', lineup: [] }),
   ];
   d.trainings = [
-    { id: 't1', team_id: T, date: '2026-01-02', notes: '', present: ['a'] },
-    { id: 't2', team_id: T, date: '2026-01-03', notes: '', present: ['a', 'b'] },
+    { id: 't1', team_id: T, date: '2026-01-02', notes: '', present: ['a'], attendance: [] },
+    { id: 't2', team_id: T, date: '2026-01-03', notes: '', present: ['a', 'b'], attendance: [] },
   ];
   return d;
 }

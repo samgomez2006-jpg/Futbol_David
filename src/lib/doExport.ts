@@ -19,6 +19,7 @@ export async function runExport(scope: Scope, format: Format, d: Dataset, team: 
     for (const t of tables) files[`${slug(t.name)}.csv`] = new Uint8Array(await buildCsv(t).arrayBuffer());
     return saveBlob(`${base}_csv.zip`, new Blob([zipSync(files) as BlobPart], { type: 'application/zip' }));
   }
+  if (scope === 'analiticas' && !match) return saveBlob(`${base}.pdf`, await (await import('./analyticsPdf')).buildAnalyticsPdf(d, team));
   const { buildReportPdf } = await import('./pdf');
   const subtitle = `${team.name}${team.category ? ` · ${team.category}` : ''} · ${team.season} · ${new Date().toLocaleDateString('es')}`;
   const blob = match

@@ -6,7 +6,7 @@
 import { FORMATIONS, POSITIONS, SKILLS, slotKey } from './constants';
 import { currentSeason, todayISO } from './dates';
 import { uid } from './id';
-import { normalizeMatch, normalizeProfile } from './normalize';
+import { normalizeArrival, normalizeDataset, normalizeMatch, normalizeProfile } from './normalize';
 import type {
   BoardData, BoardItem, BoardLine, Callup, CallupStatus, CardEvent, ConcededGoal, Dataset, Evaluation, Incident, LineupEntry,
   Match, Objective, ObjectiveCategory, Play, PlayKind, Player, ScoredGoal, Substitution, Team, Training,
@@ -49,8 +49,9 @@ export function makeBackup(team: Team, data: Dataset): Backup {
 /** Convierte cualquier copia (nueva o antigua) en un Dataset limpio con UUID nuevos asignados al equipo dado. */
 export function parseBackup(raw: unknown, teamId: string): { team: Omit<Team, 'id'>; data: Dataset } {
   if (!isObj(raw)) throw new Error('Archivo no válido');
-  if (raw.app === BACKUP_APP && isObj(raw.data)) return fromV5(raw, teamId);
-  if (Array.isArray(raw.players) && Array.isArray(raw.matches)) return fromLegacy(raw, teamId);
+  const done = (r: { team: Omit<Team, 'id'>; data: Dataset }) => ({ ...r, data: normalizeDataset(r.data) });
+  if (raw.app === BACKUP_APP && isObj(raw.data)) return done(fromV5(raw, teamId));
+  if (Array.isArray(raw.players) && Array.isArray(raw.matches)) return done(fromLegacy(raw, teamId));
   throw new Error('El archivo no parece una copia de Mi Equipo FC');
 }
 
@@ -141,6 +142,7 @@ function fromLegacy(d: Obj, teamId: string) {
     date: date(t.date) ?? todayISO(),
     notes: str(t.notes, 2000),
     present: arr(t.present).map(ref).filter((x): x is string => !!x),
+    attendance: [],
   }));
 
   const evaluations: Evaluation[] = arr(d.evaluations).filter(isObj).flatMap((e) => {
@@ -245,6 +247,7 @@ function fromV5(raw: Obj, teamId: string) {
       trainings: arr(d.trainings).filter(isObj).map((x) => ({
         id: uid(), team_id: teamId, date: date(x.date) ?? todayISO(), notes: str(x.notes, 2000),
         present: arr(x.present).map(ref).filter((y): y is string => !!y),
+        attendance: arr(x.attendance).filter(isObj).flatMap((a) => { const pid = ref(a.pid); const ar = normalizeArrival(a); return pid && ar ? [{ pid, ...ar }] : []; }),
       })),
       evaluations: arr(d.evaluations).filter(isObj).flatMap((e) => {
         const pid = ref(e.player_id);
@@ -281,7 +284,7 @@ function callupPlayers(x: unknown, ref: (x: unknown) => string | null) {
   const out: Callup['players'] = [];
   for (const e of arr(x).filter(isObj)) {
     const pid = ref(e.pid);
-    if (pid && !out.some((y) => y.pid === pid)) out.push({ pid, status: oneOf<CallupStatus>(e.status, ['pending', 'confirmed', 'declined'], 'pending') });
+    if (pid && !out.some((y) => y.pid === pid)) out.push({ pid, status: oneOf<CallupStatus>(e.status, ['pending', 'confirmed', 'declined'], 'pending'), arrival: normalizeArrival(e.arrival) });
   }
   return out;
 }

@@ -1,4 +1,4 @@
-import { ChevronRight, Download, Lightbulb, Pencil, Shield, Users, UserCog } from 'lucide-react';
+import { ChevronRight, ArrowLeftRight, Download, Lightbulb, Pencil, Shield, Users, UserCog } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { IconBadge, TextBlock, TopBar } from '../components/bits';
@@ -61,6 +61,7 @@ export default function Team() {
 
         <div className="sec-label">Cuenta y datos</div>
         <div className="card flush">
+          <Link className="row" to="/equipos"><div className="ri"><div className="rn">Mis equipos</div><div className="rm">Cambiar, crear o eliminar equipos</div></div><ArrowLeftRight className="ico" /></Link>
           <Link className="row" to="/cuenta"><div className="ri"><div className="rn">Cuenta y sincronización</div><div className="rm">{email ?? 'Solo en este dispositivo'} <SyncPill /></div></div><ChevronRight className="ico" /></Link>
           <Link className="row" to="/exportar"><div className="ri"><div className="rn">Exportar datos</div><div className="rm">Excel, CSV y PDF</div></div><Download className="ico" /></Link>
           <button className="row" onClick={() => openSheet({ kind: 'backup' })}><div className="ri"><div className="rn">Copias de seguridad</div><div className="rm">Exportar o importar un archivo .json</div></div><ChevronRight className="ico" /></button>

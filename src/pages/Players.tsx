@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router';
 import { ExportButton } from '../components/ExportButton';
 import { Empty, playerTag, posBadge, TopBar } from '../components/bits';
 import { ageYears } from '../lib/dates';
+import { squadPunctuality } from '../lib/punctuality';
 import { playerStats, sortPlayers } from '../lib/stats';
 import { useStore } from '../store/store';
 import { openSheet } from '../store/ui';
 
-type Sort = 'num' | 'mins' | 'goals';
+type Sort = 'num' | 'mins' | 'goals' | 'lates';
 
 export default function Players() {
   const data = useStore((s) => s.data);
@@ -22,8 +23,10 @@ export default function Players() {
   const rows = (showArchived ? archived : active)
     .map((p) => ({ p, s: playerStats(data, p.id) }))
     .filter(({ p }) => !q || p.name.toLowerCase().includes(q.toLowerCase()) || String(p.number ?? '') === q);
+  const lateBy = new Map(squadPunctuality(data, rows.map((r) => r.p)).map((x) => [x.p.id, x.s.lates]));
+  const late = (id: string) => lateBy.get(id) ?? 0;
   const order = new Map(sortPlayers(rows.map((r) => r.p)).map((p, i) => [p.id, i]));
-  rows.sort((a, b) => (sort === 'mins' ? b.s.mins - a.s.mins : sort === 'goals' ? b.s.goals - a.s.goals || b.s.assists - a.s.assists : 0) || order.get(a.p.id)! - order.get(b.p.id)!);
+  rows.sort((a, b) => (sort === 'mins' ? b.s.mins - a.s.mins : sort === 'goals' ? b.s.goals - a.s.goals || b.s.assists - a.s.assists : sort === 'lates' ? late(b.p.id) - late(a.p.id) : 0) || order.get(a.p.id)! - order.get(b.p.id)!);
   const totalMins = active.reduce((a, p) => a + playerStats(data, p.id).mins, 0);
 
   return (
@@ -37,7 +40,7 @@ export default function Players() {
               <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o dorsal" aria-label="Buscar jugador" style={{ paddingLeft: 40 }} />
             </div>
             <div className="tabs" style={{ paddingTop: 0, marginBottom: 8 }}>
-              {([['num', 'Dorsal'], ['mins', 'Minutos'], ['goals', 'Goles']] as [Sort, string][]).map(([k, l]) => (
+              {([['num', 'Dorsal'], ['mins', 'Minutos'], ['goals', 'Goles'], ['lates', 'Retrasos']] as [Sort, string][]).map(([k, l]) => (
                 <button key={k} className={`tab ${sort === k ? 'active' : ''}`} onClick={() => setSort(k)}>{l}</button>
               ))}
               {archived.length > 0 && <button className={`tab ${showArchived ? 'active' : ''}`} onClick={() => setShowArchived(!showArchived)}>De baja ({archived.length})</button>}
@@ -57,7 +60,7 @@ export default function Players() {
                   <div className="avatar">{playerTag(p)}</div>
                   <div className="ri">
                     <div className="rn">{p.name}</div>
-                    <div className="rm"><span className={`badge ${posBadge[p.position]}`} style={{ fontSize: 10 }}>{p.position}</span>{age != null && <span>{age} años</span>}</div>
+                    <div className="rm"><span className={`badge ${posBadge[p.position]}`} style={{ fontSize: 10 }}>{p.position}</span>{age != null && <span>{age} años</span>}{late(p.id) > 0 && <span className="badge b-gold" style={{ fontSize: 10 }}>{late(p.id)} retraso{late(p.id) === 1 ? '' : 's'}</span>}</div>
                   </div>
                   <div className="mini-stats" aria-label={`${s.mins} minutos, ${s.goals} goles, ${s.assists} asistencias, ${s.matches} partidos`}>
                     <div className="hi"><b>{s.mins}</b><span>MIN</span></div>

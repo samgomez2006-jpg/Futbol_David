@@ -1,4 +1,4 @@
-import { BarChart3, CalendarPlus, CalendarDays, ChevronRight, ClipboardCheck, ClipboardList, Dumbbell, LayoutTemplate, Lightbulb, MapPin, PenTool, Route, Settings, Shield, Star, Target, TriangleAlert, Trophy, UserPlus, Users } from 'lucide-react';
+import { BarChart3, CalendarPlus, CalendarDays, ChevronRight, ClipboardCheck, ClipboardList, Dumbbell, LayoutTemplate, Lightbulb, MapPin, PenTool, Route, ArrowLeftRight, Settings, Shield, Star, Target, TriangleAlert, Trophy, UserPlus, Users } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { Empty, FormStrip, IconBadge, ResultBadge, TopBar } from '../components/bits';
 import { SyncPill } from '../components/SyncPill';
@@ -42,6 +42,7 @@ export default function Home() {
         right={
           <div className="row-flex">
             <SyncPill />
+            <Link to="/equipos" className="icon-btn" aria-label="Cambiar de equipo"><ArrowLeftRight className="ico" /></Link>
             <Link to="/equipo" className="icon-btn" aria-label="Equipo y ajustes"><Settings className="ico" /></Link>
           </div>
         }

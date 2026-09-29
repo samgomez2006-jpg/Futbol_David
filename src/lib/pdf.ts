@@ -10,7 +10,7 @@ export interface PdfSection {
 const NAVY: [number, number, number] = [20, 40, 75];
 
 /** jsPDF usa fuentes Latin-1: se quitan emojis y símbolos fuera de rango para no generar basura. */
-const clean = (s: string | number) => String(s).replace(/[^\u0020-\u00FF\u20AC\n]/g, '').replace(/\u00A0/g, ' ');
+export const clean = (s: string | number) => String(s).replace(/[^\u0020-\u00FF\u20AC\n]/g, '').replace(/\u00A0/g, ' ');
 
 async function libs() {
   const [{ jsPDF }, auto] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);

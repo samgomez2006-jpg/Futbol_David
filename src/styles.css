@@ -144,6 +144,7 @@ h1,h2,h3{letter-spacing:-.02em}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;min-height:34px;border-radius:20px;font-size:12.5px;border:1px solid var(--border);color:var(--text2);background:var(--bg);font-weight:550;transition:transform var(--dur-press) var(--ease-out),background-color var(--dur-fast) ease}
 .chip:active{transform:scale(.95)}
 .chip.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:650}
+.chip.sel-gold{background:var(--draw-l,#fdf3dc);border-color:var(--draw);color:var(--draw);font-weight:650}
 .chip.sel-red{background:var(--loss-l);border-color:var(--loss);color:var(--loss);font-weight:650}
 .chip.static{cursor:default}
 .seg{display:flex;background:var(--bg3);border-radius:11px;padding:3px;gap:2px}
@@ -310,7 +311,7 @@ textarea{resize:vertical;min-height:84px;line-height:1.5}
 
 /* ---------- Campo / alineaciones ---------- */
 .pitch-svg{width:100%;max-width:360px;display:block;margin:0 auto;touch-action:manipulation}
-.pitch-svg.mini{max-width:300px}
+.pitch-svg.mini{max-width:100%}
 .pitch-pos{cursor:pointer}
 .pitch-pos:focus-visible{outline:none}
 .pitch-pos:focus-visible circle{stroke:var(--accent-d);stroke-width:3}
@@ -364,3 +365,9 @@ textarea{resize:vertical;min-height:84px;line-height:1.5}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
 .qa-two{display:block}
+
+/* ---------- Puntualidad ---------- */
+.att-row{padding:10px var(--pad);border-bottom:1px solid var(--border)}
+.att-row .who{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:14px}
+.arrival-late{margin-top:10px;padding:10px;border-radius:var(--radius-sm,10px);background:var(--bg2)}
+.att-sum{display:flex;gap:8px;flex-wrap:wrap;padding:0 var(--pad) 8px}

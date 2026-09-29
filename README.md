@@ -14,11 +14,12 @@ Producción: **https://futbol-david.vercel.app**
 | **Inicio** | Próximo partido, último resultado y racha, KPIs, accesos rápidos y el bloque **Herramientas tácticas** (pizarra, jugadas, alineaciones, evaluaciones, objetivos, convocatorias). |
 | **Plantilla** | Nombre, dorsal, posición y **minutos jugados** visibles en la lista, con goles, asistencias y partidos; todo se actualiza solo desde los partidos. |
 | **Partidos** | Próximos / jugados / papelera. Ficha completa: convocados, **alineación visual sobre el campo**, suplentes, **cambios**, minutos automáticos, goles (jugada, penalti, falta, propia puerta, centro…), **zona de cada gol**, tarjetas, incidencias, **información del rival**, **planteamiento en ataque y defensa** y observaciones. |
-| **Convocatorias y asistencia** | Al crear una convocatoria se crea sola la ficha del partido con los convocados (sin teclear nada dos veces). Entrenos, convocatorias y resumen por jugador. |
+| **Convocatorias y asistencia** | Al crear una convocatoria se crea sola la ficha del partido con los convocados (sin teclear nada dos veces). Entrenos, convocatorias y resumen por jugador. **Puntualidad**: cada jugador puede estar *puntual / tarde / falta* (con minutos de retraso, hora de llegada y observación opcionales) en entrenos y en convocatorias; el historial se acumula por jugador (retrasos totales, en entrenos, en convocatorias, % y evolución mensual) y la plantilla se puede ordenar por retrasos. |
 | **Analíticas** | Hallazgos automáticos (1ª vs 2ª parte, evolución, carga de minutos, participación…), **dos mapas de burbujas de zonas** (goles realizados y recibidos), patrones detectados en tus observaciones, tipos de gol, rendimiento por sistema. |
+| **Mis equipos** | Varios equipos por cuenta (Equipo → Mis equipos o el icono ⇄ de Inicio): crear, cambiar, editar y eliminar. Cada equipo tiene sus datos totalmente separados y al cambiar se actualiza toda la app. Borrar avisa de lo que se pierde y pide doble confirmación si hay datos; el cuerpo técnico que no es propietario solo *sale* del equipo. |
 | **Equipo** | Información general, cuerpo técnico, sistema habitual, modelo y principios de juego, ideas tácticas (todo editable), cuenta y exportaciones. |
 | **Pizarra táctica** | Campo completo / medio / zona libre, jugadores, rivales, balón, conos, porterías, zonas y texto; movimientos, pases y conducciones; deshacer/rehacer, animación, guardar, editar, duplicar y exportar (PNG, PDF, JSON). |
-| **Exportar** | Excel (.xlsx), CSV y PDF de plantilla, partidos, goles, minutos, convocatorias, asistencia y analíticas; ficha de partido en PDF. |
+| **Exportar** | Excel (.xlsx), CSV y PDF de plantilla, partidos, goles, minutos, convocatorias, asistencia y analíticas (el PDF de analíticas es un **informe visual** con gráficos: resultados, evolución de goles, goles por parte y minuto, mapas de zonas, jugadores, minutos, tendencias); ficha de partido en PDF. |
 
 ## Zonas de gol
 

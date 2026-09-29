@@ -136,13 +136,19 @@ setChangeListener(() => scheduleSync());
 
 export type LocalStrategy = 'merge' | 'discard';
 
-export async function myTeams(userId: string): Promise<Team[]> {
+export type MyTeam = Team & { role: 'owner' | 'coach' };
+
+export async function myTeams(userId: string): Promise<MyTeam[]> {
   const { data, error } = await supabase!
     .from('team_members')
-    .select('teams(id,name,season,category,invite_code,profile)')
+    .select('role,teams(id,name,season,category,invite_code,profile)')
     .eq('user_id', userId);
   if (error) throw error;
-  return (data ?? []).map((r) => (r as unknown as { teams: Team }).teams).filter(Boolean).map(normalizeTeam);
+  return (data ?? [])
+    .map((r) => r as unknown as { role: 'owner' | 'coach'; teams: Team | null })
+    .filter((r) => r.teams)
+    .map((r) => ({ ...normalizeTeam(r.teams!), role: r.role }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
 
 export const hasLocalData = () => {
@@ -165,7 +171,7 @@ export async function createCloudTeam(who: Who, input: { name: string; season: s
   if (error) throw error;
   const remote = normalizeTeam(data as Team);
   const profile = opts.keepLocal ? st.team.profile : emptyProfile();
-  st._set({ mode: 'cloud', ownerId: who.userId, team: { ...remote, profile }, data: local, outbox: [], userEmail: who.email, syncError: null });
+  st._set({ mode: 'cloud', ownerId: who.userId, team: { ...remote, profile }, data: local, stash: {}, outbox: [], userEmail: who.email, syncError: null });
   useStore.getState()._set({ outbox: enqueueEverything() });
   if (opts.extra) useStore.getState().bulkAdd(opts.extra);
   await persistNow();
@@ -175,7 +181,7 @@ export async function createCloudTeam(who: Who, input: { name: string; season: s
 export async function adoptTeam(who: Who, team: Team, strategy: LocalStrategy) {
   const st = useStore.getState();
   const local = strategy === 'merge' ? st.data : emptyDataset();
-  st._set({ mode: 'cloud', ownerId: who.userId, team, data: emptyDataset(), outbox: [], userEmail: who.email, syncError: null });
+  st._set({ mode: 'cloud', ownerId: who.userId, team, data: emptyDataset(), stash: {}, outbox: [], userEmail: who.email, syncError: null });
   if (strategy === 'merge' && TABLES.some((t) => local[t].length)) useStore.getState().bulkAdd(local as Dataset);
   await persistNow();
   await syncNow();
@@ -188,10 +194,99 @@ export async function joinWithCode(who: Who, code: string, strategy: LocalStrate
   await adoptTeam(who, normalizeTeam(data as Team), strategy);
 }
 
+// ---------------------------------------------------------------------------
+// Varios equipos por cuenta. El equipo activo vive en `team`/`data`; los demás quedan en `stash`.
+// Todos los datos cuelgan de team_id, así que cambiar de equipo cambia toda la app sin mezclar nada.
+// ---------------------------------------------------------------------------
+
+/** Aparta el equipo activo en la caché y activa el indicado (con su caché o vacío). */
+function activate(target: Team) {
+  const st = useStore.getState();
+  const stash = { ...st.stash };
+  if (st.team.id !== target.id) stash[st.team.id] = { team: st.team, data: st.data };
+  const cached = stash[target.id];
+  delete stash[target.id];
+  st._set({ team: cached ? { ...cached.team, ...target } : target, data: cached?.data ?? emptyDataset(), stash, syncError: null });
+}
+
+/** Cambia de equipo: sube lo pendiente, activa el otro y lo actualiza desde la nube. */
+export async function switchTeam(target: Team) {
+  const st = useStore.getState();
+  if (st.mode !== 'cloud' || st.team.id === target.id) return;
+  await flush();
+  activate(target);
+  await persistNow();
+  await pull();
+}
+
+/** Crea un equipo más en la cuenta (sin tocar los existentes) y lo deja activo. */
+export async function addTeam(input: { name: string; season: string; category: string }, extra?: Dataset, profile?: Team['profile']) {
+  if (!supabase) throw new Error('Supabase no configurado');
+  await flush();
+  const { data, error } = await supabase.rpc('create_team', { p_name: input.name, p_season: input.season, p_category: input.category, p_id: crypto.randomUUID() });
+  if (error) throw error;
+  const created = normalizeTeam(data as Team);
+  activate(created);
+  if (profile) useStore.getState().updateTeam({ profile });
+  if (extra) useStore.getState().bulkAdd(extra);
+  await persistNow();
+  await syncNow();
+  return created;
+}
+
+/** Cuenta de registros de un equipo (para avisar antes de borrarlo). */
+export async function teamCounts(teamId: string): Promise<Record<TableNameLite, number>> {
+  const out = {} as Record<TableNameLite, number>;
+  await Promise.all(
+    TABLES.map(async (t) => {
+      const { count, error } = await supabase!.from(t).select('id', { count: 'exact', head: true }).eq('team_id', teamId);
+      if (error) throw error;
+      out[t] = count ?? 0;
+    }),
+  );
+  return out;
+}
+type TableNameLite = (typeof TABLES)[number];
+
+/**
+ * Elimina un equipo. Propietario: se borra el equipo y TODOS sus datos (cascada en la base de datos).
+ * Cuerpo técnico: solo abandona el equipo. Devuelve el equipo que queda activo (o null si no queda ninguno).
+ */
+export async function removeTeam(target: MyTeam, userId: string): Promise<MyTeam | null> {
+  if (!supabase) throw new Error('Supabase no configurado');
+  await flush();
+  const q = target.role === 'owner'
+    ? supabase.from('teams').delete().eq('id', target.id).select('id')
+    : supabase.from('team_members').delete().eq('team_id', target.id).eq('user_id', userId).select('team_id');
+  const { data, error } = await q;
+  if (error) throw error;
+  if (!data?.length) throw new Error('No se pudo eliminar el equipo (¿sin permisos?)');
+
+  const st = useStore.getState();
+  // Nada pendiente de un equipo que ya no existe.
+  const outbox = st.outbox.filter((m) => (m.row as { team_id?: string } | undefined)?.team_id !== target.id && m.rowId !== target.id);
+  const stash = { ...st.stash };
+  delete stash[target.id];
+  st._set({ outbox, stash });
+
+  const rest = await myTeams(userId);
+  if (st.team.id !== target.id) return null;
+  const next = rest[0];
+  if (!next) {
+    resetLocal();
+    await persistNow();
+    return null;
+  }
+  activate(next);
+  await persistNow();
+  await pull();
+  return next;
+}
+
 /** Deja el dispositivo limpio (sin datos de ninguna cuenta). */
 export function resetLocal() {
   useStore.getState()._set({
-    mode: 'guest', ownerId: null, team: newGuestTeam(), data: emptyDataset(), outbox: [], userEmail: null,
+    mode: 'guest', ownerId: null, team: newGuestTeam(), data: emptyDataset(), stash: {}, outbox: [], userEmail: null,
     lastSyncAt: null, sync: 'idle', syncError: null,
   });
 }

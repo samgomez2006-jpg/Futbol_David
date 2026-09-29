@@ -72,6 +72,7 @@ export function Onboarding() {
   if (!teams) return <div className="splash" aria-busy="true">Cargando tu equipo…</div>;
 
   const existing = teams[0];
+  const many = teams.length > 1;
   return (
     <div className="auth">
       <div className="brand">
@@ -82,16 +83,18 @@ export function Onboarding() {
       <div className="auth-card">
         {existing ? (
           <>
-            <h2>Tu equipo</h2>
-            <p className="sub">Esta cuenta ya tiene un equipo. Los datos de este dispositivo no se han subido todavía.</p>
-            <button className="option-card" disabled={busy} onClick={() => void run(() => adoptTeam(who, existing, 'discard'), 'Equipo abierto ✓')}>
-              <Users className="ico-lg" />
-              <span><span className="ot">Abrir «{existing.name}»</span><br /><span className="os">{[existing.season, existing.category].filter(Boolean).join(' · ') || 'Equipo de tu cuenta'}</span></span>
-            </button>
+            <h2>{many ? 'Tus equipos' : 'Tu equipo'}</h2>
+            <p className="sub">{many ? 'Elige con cuál quieres empezar; podrás cambiar en cualquier momento desde Equipo → Mis equipos.' : 'Esta cuenta ya tiene un equipo.'} Los datos de este dispositivo no se han subido todavía.</p>
+            {teams.map((t) => (
+              <button key={t.id} className="option-card" disabled={busy} onClick={() => void run(() => adoptTeam(who, t, 'discard'), 'Equipo abierto ✓')}>
+                <Users className="ico-lg" />
+                <span><span className="ot">Abrir «{t.name}»</span><br /><span className="os">{[t.season, t.category].filter(Boolean).join(' · ') || 'Equipo de tu cuenta'}</span></span>
+              </button>
+            ))}
             {hasLocal && (
               <button className="option-card" disabled={busy} onClick={() => void run(() => adoptTeam(who, existing, 'merge'), 'Datos añadidos ✓')}>
                 <Plus className="ico-lg" />
-                <span><span className="ot">Abrir y añadir los datos de este dispositivo</span><br /><span className="os">{localSummary}</span></span>
+                <span><span className="ot">Añadir los datos de este dispositivo a «{existing.name}»</span><br /><span className="os">{localSummary}</span></span>
               </button>
             )}
           </>

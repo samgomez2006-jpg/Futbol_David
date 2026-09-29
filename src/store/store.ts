@@ -32,6 +32,8 @@ interface Persisted {
   ownerId: string | null;
   team: Team;
   data: Dataset;
+  /** Datos en caché de los OTROS equipos de la cuenta (el activo vive en `team`/`data`). Se refrescan al abrirlos. */
+  stash: Record<string, { team: Team; data: Dataset }>;
   outbox: Mutation[];
   lastSyncAt: string | null;
 }
@@ -69,7 +71,7 @@ function persistSoon() {
 }
 const snapshot = (): Persisted => {
   const s = useStore.getState();
-  return { v: 6, mode: s.mode, ownerId: s.ownerId, team: s.team, data: s.data, outbox: s.outbox, lastSyncAt: s.lastSyncAt };
+  return { v: 6, mode: s.mode, ownerId: s.ownerId, team: s.team, data: s.data, stash: s.stash, outbox: s.outbox, lastSyncAt: s.lastSyncAt };
 };
 export async function persistNow() {
   clearTimeout(saveTimer);
@@ -109,6 +111,7 @@ export const useStore = create<State>((set, get) => ({
   ownerId: null,
   team: newGuestTeam(),
   data: emptyDataset(),
+  stash: {},
   outbox: [],
   lastSyncAt: null,
   userEmail: null,
@@ -116,7 +119,7 @@ export const useStore = create<State>((set, get) => ({
   syncError: null,
 
   async hydrate() {
-    type Stored = Omit<Persisted, 'v' | 'ownerId'> & { v: number; ownerId?: string | null };
+    type Stored = Omit<Persisted, 'v' | 'ownerId' | 'stash'> & { v: number; ownerId?: string | null; stash?: Persisted['stash'] };
     let p = await storage.get<Stored>(KEY);
     if (!p) {
       // Primera ejecución: intenta recuperar los datos del HTML original si están en este mismo origen.
@@ -125,7 +128,7 @@ export const useStore = create<State>((set, get) => ({
         if (legacy) {
           const team = newGuestTeam();
           const parsed = parseBackup(JSON.parse(legacy), team.id);
-          p = { v: 6, mode: 'guest', team: { ...team, ...parsed.team }, data: parsed.data, outbox: [], lastSyncAt: null };
+          p = { v: 6, mode: 'guest', team: { ...team, ...parsed.team }, data: parsed.data, stash: {}, outbox: [], lastSyncAt: null };
         }
       } catch {
         /* datos antiguos corruptos: se ignoran */
@@ -137,6 +140,7 @@ export const useStore = create<State>((set, get) => ({
       if (p.mode === 'cloud') for (const id of purged) outbox = enqueue(outbox, { table: 'matches', op: 'delete', rowId: id });
       set({
         mode: p.mode, ownerId: p.ownerId ?? null, team: normalizeTeam(p.team), data: clean, outbox,
+        stash: Object.fromEntries(Object.entries(p.stash ?? {}).map(([id, e]) => [id, { team: normalizeTeam(e.team), data: normalizeDataset(e.data) }])),
         lastSyncAt: p.lastSyncAt ?? null,
       });
       if (purged.length || p.v !== 6) persistSoon();

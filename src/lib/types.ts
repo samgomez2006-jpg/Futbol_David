@@ -170,10 +170,26 @@ export interface Match extends Row {
 // ---------------------------------------------------------------------------
 // Resto de registros
 // ---------------------------------------------------------------------------
+/** Llegada de un jugador a un entreno o partido. */
+export type Punctuality = 'punctual' | 'late' | 'absent';
+export interface Arrival {
+  status: Punctuality;
+  /** Solo con retraso; opcionales. */
+  minutes_late?: number | null;
+  arrival_time?: string;
+  note?: string;
+}
+export interface TrainingAttendance extends Arrival {
+  pid: string;
+}
+
 export interface Training extends Row {
   date: ISODate;
   notes: string;
+  /** Jugadores que asistieron (puntuales o con retraso). Derivado de `attendance`; se mantiene por compatibilidad. */
   present: string[];
+  /** Estado de cada jugador; los no listados cuentan como ausentes. */
+  attendance: TrainingAttendance[];
 }
 
 export interface Evaluation extends Row {
@@ -204,7 +220,13 @@ export interface Callup extends Row {
   date: ISODate;
   meet_time: string;
   place: string;
-  players: { pid: string; status: CallupStatus }[];
+  players: CallupEntry[];
+}
+/** `status` = convocado/baja; `arrival` = puntualidad el día del partido (opcional, se rellena después). */
+export interface CallupEntry {
+  pid: string;
+  status: CallupStatus;
+  arrival?: Arrival | null;
 }
 
 // ---------------------------------------------------------------------------

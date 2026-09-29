@@ -1,9 +1,8 @@
 import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { cloudEnabled, supabase } from '../lib/supabase';
-import type { Team } from '../lib/types';
 import { useStore } from './store';
-import { adoptTeam, hasLocalData, myTeams, resetLocal, syncNow } from './sync';
+import { adoptTeam, hasLocalData, myTeams, resetLocal, syncNow, type MyTeam } from './sync';
 
 // Estado de la sesión. La app exige sesión cuando Supabase está configurado; sin Supabase funciona en local.
 
@@ -14,7 +13,7 @@ interface AuthState {
   userId: string | null;
   email: string | null;
   /** Equipos del usuario en la nube (null = todavía sin cargar). */
-  teams: Team[] | null;
+  teams: MyTeam[] | null;
   teamsError: string | null;
   /** Mensaje para mostrar en la pantalla de acceso (p. ej. resultado de un enlace del email). */
   notice: { kind: 'ok' | 'error'; text: string } | null;

@@ -4,7 +4,9 @@ import { analyse, fmtPct } from './analytics';
 import { fmtDate, ageYears } from './dates';
 import { resolveAssign } from './lineup';
 import { activePlayers, callupOfMatch, playedMatches, playerStats, resultOf, sortPlayers, squadOf } from './stats';
-import type { Dataset, Match } from './types';
+import { normalizeTraining } from './normalize';
+import { PUNCT_LABEL } from './punctuality';
+import type { Arrival, Dataset, Match } from './types';
 import { zoneLabel, ZONES } from './zones';
 import type { PdfSection } from './pdf';
 import type { Table } from './xlsx';
@@ -61,18 +63,27 @@ export function minutesTable(d: Dataset): Table {
   return { name: 'Minutos', head: ['Fecha', 'Rival', 'Jugador', 'Rol', 'Posición', 'Minutos'], rows };
 }
 
+const arrivalCells = (a: Arrival | null | undefined): (string | number | null)[] =>
+  a ? [PUNCT_LABEL[a.status], a.status === 'late' ? a.minutes_late ?? null : null, a.arrival_time ?? '', a.note ?? ''] : ['', null, '', ''];
+
 export function callupsTable(d: Dataset): Table {
   const rows: (string | number | null)[][] = [];
   for (const c of [...d.callups].sort((a, b) => (a.date < b.date ? -1 : 1)))
-    for (const p of c.players) rows.push([fmtDate(c.date), c.rival, c.meet_time, c.place, nameOf(d, p.pid), p.status === 'confirmed' ? 'Convocado' : p.status === 'declined' ? 'Baja' : 'Pendiente']);
-  return { name: 'Convocatorias', head: ['Fecha', 'Rival', 'Hora', 'Lugar', 'Jugador', 'Estado'], rows };
+    for (const p of c.players) rows.push([fmtDate(c.date), c.rival, c.meet_time, c.place, nameOf(d, p.pid), p.status === 'confirmed' ? 'Convocado' : p.status === 'declined' ? 'Baja' : 'Pendiente', ...arrivalCells(p.status === 'confirmed' ? p.arrival : null)]);
+  return { name: 'Convocatorias', head: ['Fecha', 'Rival', 'Hora', 'Lugar', 'Jugador', 'Estado', 'Puntualidad', 'Min. retraso', 'Hora llegada', 'Observación'], rows };
 }
 
 export function trainingsTable(d: Dataset): Table {
   const rows: (string | number | null)[][] = [];
   const players = sortPlayers(activePlayers(d));
-  for (const t of [...d.trainings].sort((a, b) => (a.date < b.date ? -1 : 1))) for (const p of players) rows.push([fmtDate(t.date), t.notes, p.name, t.present.includes(p.id) ? 'Sí' : 'No']);
-  return { name: 'Entrenos', head: ['Fecha', 'Notas', 'Jugador', 'Presente'], rows };
+  for (const raw of [...d.trainings].sort((a, b) => (a.date < b.date ? -1 : 1))) {
+    const t = normalizeTraining(raw);
+    for (const p of players) {
+      const a = t.attendance.find((x) => x.pid === p.id) ?? { status: 'absent' as const };
+      rows.push([fmtDate(t.date), t.notes, p.name, a.status === 'absent' ? 'No' : 'Sí', ...arrivalCells(a)]);
+    }
+  }
+  return { name: 'Entrenos', head: ['Fecha', 'Notas', 'Jugador', 'Presente', 'Puntualidad', 'Min. retraso', 'Hora llegada', 'Observación'], rows };
 }
 
 export function zonesTable(d: Dataset): Table {

@@ -6,7 +6,8 @@ import { Field, Sheet } from '../components/Sheet';
 import { COMPETITIONS } from '../lib/constants';
 import { todayISO } from '../lib/dates';
 import { activePlayers, matchOfCallup, sortPlayers } from '../lib/stats';
-import type { CallupStatus, Venue } from '../lib/types';
+import type { Arrival, CallupEntry, CallupStatus, Venue } from '../lib/types';
+import { ArrivalEditor } from '../components/ArrivalEditor';
 import { saveCallup } from '../store/actions';
 import { useStore } from '../store/store';
 import { toast } from '../store/ui';
@@ -23,14 +24,15 @@ export function CallupSheet({ id, onClose }: { id?: string; onClose: () => void 
   const [venue, setVenue] = useState<Venue>(match?.venue ?? 'L');
   const [competition, setCompetition] = useState(match?.competition ?? '');
   // Copia local: cancelar no modifica la convocatoria guardada.
-  const [state, setState] = useState<{ pid: string; status: CallupStatus }[]>(() => (c?.players ?? []).map((x) => ({ ...x })));
+  const [state, setState] = useState<CallupEntry[]>(() => (c?.players ?? []).map((x) => ({ ...x })));
   const inCallup = new Set((c?.players ?? []).map((p) => p.pid));
   const roster = sortPlayers(data.players.filter((p) => !p.archived_at || inCallup.has(p.id)));
   const statusOf = (pid: string): CallupStatus => state.find((x) => x.pid === pid)?.status ?? 'pending';
   const setStatus = (pid: string, s: CallupStatus) => {
     const next = statusOf(pid) === s ? 'pending' : s;
-    setState([...state.filter((x) => x.pid !== pid), { pid, status: next }]);
+    setState([...state.filter((x) => x.pid !== pid), { ...state.find((x) => x.pid === pid), pid, status: next }]);
   };
+  const setArrival = (pid: string, arrival: Arrival | null) => setState(state.map((x) => (x.pid === pid ? { ...x, arrival } : x)));
   const called = state.filter((x) => x.status === 'confirmed').length;
   const allActive = activePlayers(data);
 
@@ -87,6 +89,18 @@ export function CallupSheet({ id, onClose }: { id?: string; onClose: () => void 
         );
       })}
       {!roster.length && <p className="hint">Primero añade jugadores a la plantilla.</p>}
+      {c && called > 0 && (
+        <>
+          <div className="sec-label"><span>Puntualidad el día del partido</span></div>
+          <p className="hint" style={{ padding: '0 var(--pad) 6px' }}>Opcional: se suma al historial de puntualidad de cada jugador.</p>
+          {roster.filter((p) => statusOf(p.id) === 'confirmed').map((p) => (
+            <div className="att-row" key={p.id}>
+              <div className="who"><span className="bold">{p.number != null ? `${p.number}. ` : ''}{p.name}</span></div>
+              <ArrivalEditor name={p.name} value={state.find((x) => x.pid === p.id)?.arrival} onChange={(a) => setArrival(p.id, a)} />
+            </div>
+          ))}
+        </>
+      )}
     </Sheet>
   );
 }

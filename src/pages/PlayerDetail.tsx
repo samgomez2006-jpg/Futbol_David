@@ -4,6 +4,8 @@ import { Empty, playerTag, posBadge, Progress, TopBar } from '../components/bits
 import { SKILLS } from '../lib/constants';
 import { ageYears, compareDateDesc, fmtDate } from '../lib/dates';
 import { evalAverage, latestEvaluations, playedMatches, playerStats } from '../lib/stats';
+import { PunctualityCard } from '../components/PunctualityCard';
+import { punctualityStats } from '../lib/punctuality';
 import { useStore } from '../store/store';
 import { confirmDialog, openSheet, toast } from '../store/ui';
 
@@ -83,6 +85,8 @@ export default function PlayerDetail() {
             <span className="bold num">{s.called}/{s.totalCallups}</span>
           </div>
         </div>
+
+        <PunctualityCard s={punctualityStats(data, p.id)} />
 
         <div className="sec-label">
           {ev ? `Última evaluación (${fmtDate(ev.date)})` : 'Evaluación'}

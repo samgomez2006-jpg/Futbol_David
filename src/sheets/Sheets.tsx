@@ -7,7 +7,9 @@ import { todayISO } from '../lib/dates';
 import { uid } from '../lib/id';
 import { saveTextFile } from '../lib/platform';
 import { activePlayers, sortPlayers } from '../lib/stats';
-import type { Evaluation, Foot, Objective, ObjectiveCategory, Position, Training } from '../lib/types';
+import type { Arrival, Evaluation, Foot, Objective, ObjectiveCategory, Position } from '../lib/types';
+import { normalizeTraining } from '../lib/normalize';
+import { ArrivalEditor } from '../components/ArrivalEditor';
 import { useStore } from '../store/store';
 import { confirmDialog, toast, useUI, type SheetSpec } from '../store/ui';
 import { CallupSheet } from './CallupSheet';
@@ -66,38 +68,48 @@ export function PlayerSheet({ id, onClose }: { id?: string; onClose: () => void 
 export function TrainingSheet({ id, onClose }: { id?: string; onClose: () => void }) {
   const data = useStore((s) => s.data);
   const upsert = useStore((s) => s.upsert);
-  const t = id ? data.trainings.find((x) => x.id === id) : undefined;
+  const raw = id ? data.trainings.find((x) => x.id === id) : undefined;
+  const t = raw ? normalizeTraining(raw) : undefined;
   const [date, setDate] = useState(t?.date ?? todayISO());
   const [notes, setNotes] = useState(t?.notes ?? '');
-  const [present, setPresent] = useState<string[]>(t?.present ?? []);
+  const [att, setAtt] = useState<Record<string, Arrival | null>>(() => Object.fromEntries((t?.attendance ?? []).map(({ pid, ...a }) => [pid, a])));
   const roster = sortPlayers(activePlayers(data));
-  const toggle = (pid: string) => setPresent(present.includes(pid) ? present.filter((x) => x !== pid) : [...present, pid]);
+  const count = (s: Arrival['status']) => roster.filter((p) => att[p.id]?.status === s).length;
+  const unmarked = roster.length - count('punctual') - count('late') - count('absent');
 
   const save = () => {
-    const row: Training = { id: t?.id ?? uid(), team_id: '', date: date || todayISO(), notes: notes.trim(), present };
+    const rosterIds = new Set(roster.map((p) => p.id));
+    // Sin marcar = falta. Se conservan las entradas de jugadores dados de baja.
+    const attendance = [
+      ...roster.map((p) => ({ pid: p.id, ...(att[p.id] ?? { status: 'absent' as const }) })),
+      ...Object.entries(att).filter(([pid, a]) => !rosterIds.has(pid) && a).map(([pid, a]) => ({ pid, ...a! })),
+    ];
+    const row = normalizeTraining({ id: t?.id ?? uid(), team_id: '', date: date || todayISO(), notes: notes.trim(), present: [], attendance });
     upsert('trainings', row);
-    toast(`Entrenamiento guardado (${present.length} asistentes) ✓`);
+    toast(`Entrenamiento guardado · ${row.present.length} asistentes${count('late') ? `, ${count('late')} con retraso` : ''} ✓`);
     onClose();
   };
 
   return (
     <Sheet title={t ? 'Editar entrenamiento' : 'Asistencia a entrenamiento'} onClose={onClose}
       actions={<><Cancel onClose={onClose} /><button className="btn btn-p" style={{ flex: 2 }} onClick={save}>Guardar</button></>}>
-      <div className="frow">
-        <Field label="Fecha" className=""><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-        <div style={{ alignSelf: 'end' }}>
-          <button className="btn btn-g btn-sm btn-block" onClick={() => setPresent(present.length === roster.length ? [] : roster.map((p) => p.id))}>
-            {present.length === roster.length && roster.length ? 'Quitar todos' : 'Marcar todos'}
-          </button>
-        </div>
+      <Field label="Fecha"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+      <div style={{ display: 'flex', gap: 8, padding: '0 var(--pad) 8px' }}>
+        <button className="btn btn-g btn-sm" style={{ flex: 2 }} onClick={() => setAtt(Object.fromEntries(roster.map((p) => [p.id, { status: 'punctual' as const }])))}>Todos puntuales</button>
+        <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => setAtt({})}>Limpiar</button>
       </div>
       <Field label="Notas"><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Trabajo de hoy…" maxLength={2000} /></Field>
-      <div className="sec-label">Presentes · {present.length}/{roster.length}</div>
+      <div className="sec-label">Asistencia · {roster.length} jugadores</div>
+      <div className="att-sum">
+        <span className="badge b-green">{count('punctual')} puntuales</span>
+        <span className="badge b-gold">{count('late')} tarde</span>
+        <span className="badge b-red">{count('absent')} {count('absent') === 1 ? 'falta' : 'faltas'}</span>
+        {unmarked > 0 && <span className="badge b-gray">{unmarked} sin marcar (= falta)</span>}
+      </div>
       {roster.map((p) => (
-        <div className="check-row" key={p.id}>
-          <input type="checkbox" id={`tr-${p.id}`} checked={present.includes(p.id)} onChange={() => toggle(p.id)} />
-          <label htmlFor={`tr-${p.id}`} className="grow">{p.name}</label>
-          <span className="muted xs">{p.position}</span>
+        <div className="att-row" key={p.id}>
+          <div className="who"><span className="bold">{p.number != null ? `${p.number}. ` : ''}{p.name}</span><span className="muted xs">{p.position}</span></div>
+          <ArrivalEditor name={p.name} value={att[p.id]} onChange={(a) => setAtt({ ...att, [p.id]: a })} />
         </div>
       ))}
       {!roster.length && <p className="hint">Primero añade jugadores a la plantilla.</p>}

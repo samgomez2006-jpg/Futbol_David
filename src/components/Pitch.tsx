@@ -39,8 +39,28 @@ export function PitchLines() {
   );
 }
 
+/** Nombre corto para el campo: primer nombre; si dos coinciden en la alineación, añade la inicial del apellido. */
+function shortNames(ids: string[], players: Map<string, Player>): Map<string, string> {
+  const first = (n: string) => n.trim().split(/\s+/)[0] ?? n;
+  const counts = new Map<string, number>();
+  for (const id of ids) {
+    const p = players.get(id);
+    if (p) counts.set(first(p.name).toLowerCase(), (counts.get(first(p.name).toLowerCase()) ?? 0) + 1);
+  }
+  const out = new Map<string, string>();
+  for (const id of ids) {
+    const p = players.get(id);
+    if (!p) continue;
+    const parts = p.name.trim().split(/\s+/);
+    const dup = (counts.get(parts[0].toLowerCase()) ?? 0) > 1 && parts.length > 1;
+    out.set(id, dup ? `${parts[0]} ${parts[1][0]}.` : parts[0]);
+  }
+  return out;
+}
+
 export function Pitch({ tactic, assign, players, onSlot, marks, compact }: PitchProps) {
   const slots = formationSlots(tactic);
+  const names = shortNames(Object.values(assign), players);
   return (
     <svg className={`pitch-svg ${compact ? 'mini' : ''}`} viewBox={`0 0 ${W} ${H}`} role={onSlot ? 'group' : 'img'} aria-label={`Campo ${tactic}`}>
       <PitchLines />
@@ -55,10 +75,15 @@ export function Pitch({ tactic, assign, players, onSlot, marks, compact }: Pitch
           <>
             <circle cx={px} cy={py} r={19} fill={p ? 'var(--accent)' : 'var(--bg)'} stroke={p ? 'var(--accent-d)' : 'var(--text3)'} strokeWidth={p ? 0 : 1.5} strokeDasharray={p ? undefined : '3 3'} />
             <text x={px} y={py + 4.5} textAnchor="middle" fontSize={p ? 13 : 10} fontWeight={750} fill={p ? 'var(--on-accent)' : 'var(--text3)'}>{label}</text>
-            {!compact && p && (
-              <text x={px} y={py + 34} textAnchor="middle" fontSize={10.5} fontWeight={650} fill="var(--text)" paintOrder="stroke" stroke="var(--pitch)" strokeWidth={3}>
-                {p.name.split(' ')[0].slice(0, 11)}
-              </text>
+            {p && (
+              <>
+                <text x={px} y={py + 33} textAnchor="middle" fontSize={compact ? 13.5 : 12} fontWeight={700} fill="var(--text)" paintOrder="stroke" stroke="var(--pitch)" strokeWidth={4} strokeLinejoin="round">
+                  {(names.get(p.id) ?? p.name).slice(0, 12)}
+                </text>
+                <text x={px} y={py + 44} textAnchor="middle" fontSize={9.5} fontWeight={650} fill="var(--text2)" paintOrder="stroke" stroke="var(--pitch)" strokeWidth={3} strokeLinejoin="round">
+                  {s.p.replace(/\d+$/, '')}
+                </text>
+              </>
             )}
             {mk?.out != null && (
               <g>

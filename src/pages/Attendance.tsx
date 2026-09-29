@@ -3,14 +3,17 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { Empty, Progress, TopBar } from '../components/bits';
 import { ExportButton } from '../components/ExportButton';
 import { compareDateDesc, fmtDate, fmtDateLong } from '../lib/dates';
+import { PunctualityCard } from '../components/PunctualityCard';
+import { squadPunctuality } from '../lib/punctuality';
+import { normalizeTraining } from '../lib/normalize';
 import { shareText } from '../lib/platform';
 import { activePlayers, matchOfCallup, playerStats, sortPlayers } from '../lib/stats';
 import { deleteCallup } from '../store/actions';
 import { useStore } from '../store/store';
 import { confirmDialog, openSheet, toast } from '../store/ui';
 
-type Tab = 'entrenos' | 'convocatorias' | 'resumen';
-const TABS: [Tab, string][] = [['entrenos', 'Entrenos'], ['convocatorias', 'Convocatorias'], ['resumen', 'Resumen']];
+type Tab = 'entrenos' | 'convocatorias' | 'puntualidad' | 'resumen';
+const TABS: [Tab, string][] = [['entrenos', 'Entrenos'], ['convocatorias', 'Convocat.'], ['puntualidad', 'Puntualidad'], ['resumen', 'Resumen']];
 
 export default function Attendance() {
   const data = useStore((s) => s.data);
@@ -72,16 +75,20 @@ export default function Attendance() {
             <>
               <div className="sec-label">Sesiones · {total}</div>
               <div className="card flush">
-                {trainings.map((t) => (
+                {trainings.map((raw) => {
+                  const t = normalizeTraining(raw);
+                  const late = t.attendance.filter((a) => a.status === 'late').length;
+                  return (
                   <div className="row" key={t.id}>
                     <div className="avatar score num">{t.present.length}</div>
                     <button className="ri" style={{ background: 'none', border: 'none', textAlign: 'left' }} onClick={() => openSheet({ kind: 'training', id: t.id })}>
                       <div className="rn">{fmtDate(t.date)}</div>
-                      <div className="rm">{t.notes || `${t.present.length} de ${players.length} presentes`}</div>
+                      <div className="rm">{t.notes || `${t.present.length} de ${players.length} presentes`}{late > 0 && <span className="badge b-gold" style={{ fontSize: 10 }}>{late} tarde</span>}</div>
                     </button>
                     <button className="icon-btn" onClick={() => void delTraining(t.id)} aria-label="Eliminar entrenamiento"><Trash2 className="ico" /></button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )
@@ -105,6 +112,7 @@ export default function Attendance() {
                     <div className="chips" style={{ marginBottom: 12 }}>
                       <span className="badge b-blue">{n('confirmed')} convocados</span>
                       {n('declined') > 0 && <span className="badge b-red">{n('declined')} bajas</span>}
+                      {c.players.filter((x) => x.status === 'confirmed' && x.arrival?.status === 'late').length > 0 && <span className="badge b-gold">{c.players.filter((x) => x.status === 'confirmed' && x.arrival?.status === 'late').length} tarde</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {m && <button className="btn btn-g btn-sm" style={{ flex: 1 }} onClick={() => nav(`/partidos/${m.id}`)}>Ver partido</button>}
@@ -116,6 +124,30 @@ export default function Attendance() {
                 );
               })}
             </div>
+          )
+        )}
+
+        {tab === 'puntualidad' && (
+          !players.length ? <Empty icon={ClipboardCheck}>Añade jugadores para ver la puntualidad.</Empty> : (
+            <>
+              <div className="sec-label">Plantilla · más retrasos primero</div>
+              <div className="card flush">
+                {squadPunctuality(data, players).map(({ p, s }) => (
+                  <button key={p.id} className="row" onClick={() => nav(`/plantilla/${p.id}`)}>
+                    <div className="avatar score num">{s.lates}</div>
+                    <div className="ri">
+                      <div className="rn">{p.name}</div>
+                      <div className="rm">{s.attended ? `${s.pctLate}% con retraso · entrenos ${s.trainings.late} · convocatorias ${s.callups.late}` : 'Sin datos de puntualidad'}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="sec-label">Detalle por jugador</div>
+              {squadPunctuality(data, players).filter(({ s }) => s.lates > 0).slice(0, 5).map(({ p, s }) => (
+                <div key={p.id}><div className="xs muted bold" style={{ padding: '0 var(--pad)' }}>{p.name}</div><PunctualityCard s={s} /></div>
+              ))}
+              {!squadPunctuality(data, players).some(({ s }) => s.lates > 0) && <p className="hint" style={{ padding: '0 var(--pad)' }}>Nadie tiene retrasos registrados todavía.</p>}
+            </>
           )
         )}
 
